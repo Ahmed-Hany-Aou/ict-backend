@@ -1,73 +1,134 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Chapter;
 use App\Models\UserProgress;
+use App\Models\SlideProgress;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class ChapterController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Get all published chapters
+     */
+    public function index()
     {
-        $user = $request->user();
-        
         $chapters = Chapter::where('is_published', true)
             ->orderBy('chapter_number')
             ->get();
 
-        // Add user progress to each chapter
-        foreach ($chapters as $chapter) {
-            $progress = UserProgress::where('user_id', $user->id)
-                ->where('chapter_id', $chapter->id)
-                ->first();
+        // Add user progress if authenticated
+        if (Auth::check()) {
+            $userId = Auth::id();
             
-            $chapter->user_progress = $progress ? $progress->status : 'not_started';
-            
-            // Check if user can access premium content
-            if ($chapter->is_premium && !$user->is_paid) {
-                $chapter->content = null; // Hide content for non-paid users
-                $chapter->is_locked = true;
-            } else {
-                $chapter->is_locked = false;
-            }
+            $chapters->each(function ($chapter) use ($userId) {
+                // Get overall chapter progress
+                $userProgress = UserProgress::where('user_id', $userId)
+                    ->where('chapter_id', $chapter->id)
+                    ->first();
+
+                // Calculate slide completion percentage
+                $totalSlides = $chapter->slides()->count();
+                $completedSlides = SlideProgress::where('user_id', $userId)
+                    ->where('chapter_id', $chapter->id)
+                    ->where('completed', true)
+                    ->count();
+
+                $chapter->progress_percentage = $totalSlides > 0 
+                    ? round(($completedSlides / $totalSlides) * 100) 
+                    : 0;
+                
+                $chapter->status = $userProgress ? $userProgress->status : 'not_started';
+                $chapter->slides_count = $totalSlides;
+                $chapter->completed_slides = $completedSlides;
+            });
         }
 
-        return response()->json($chapters);
+        return response()->json([
+            'success' => true,
+            'chapters' => $chapters
+        ]);
     }
 
-    public function show(Request $request, $id)
+    /**
+     * Get single chapter with slides
+     */
+    public function show($id)
     {
-        $user = $request->user();
-        $chapter = Chapter::where('is_published', true)->findOrFail($id);
+        $chapter = Chapter::with('slides')->findOrFail($id);
 
-        // Check access permissions
-        if ($chapter->is_premium && !$user->is_paid) {
-            return response()->json(['message' => 'Premium content requires payment'], 403);
+        if (Auth::check()) {
+            $userId = Auth::id();
+
+            // Mark chapter as started if not already
+            UserProgress::firstOrCreate(
+                [
+                    'user_id' => $userId,
+                    'chapter_id' => $id,
+                ],
+                [
+                    'status' => 'in_progress',
+                    'started_at' => now(),
+                ]
+            );
+
+            // Add progress to each slide
+            $chapter->slides->each(function ($slide) use ($userId) {
+                $progress = SlideProgress::where('user_id', $userId)
+                    ->where('slide_id', $slide->id)
+                    ->first();
+
+                $slide->completed = $progress ? $progress->completed : false;
+            });
         }
 
-        // Update user progress
-        UserProgress::updateOrCreate(
-            ['user_id' => $user->id, 'chapter_id' => $chapter->id],
-            ['status' => 'in_progress', 'started_at' => now()]
-        );
-
-        return response()->json($chapter);
+        return response()->json([
+            'success' => true,
+            'chapter' => $chapter
+        ]);
     }
 
-    public function markComplete(Request $request, $id)
+    /**
+     * Get user's progress for all chapters
+     */
+    public function getUserProgress()
     {
-        $user = $request->user();
-        
-        UserProgress::updateOrCreate(
-            ['user_id' => $user->id, 'chapter_id' => $id],
-            [
-                'status' => 'completed',
-                'completed_at' => now(),
-                'started_at' => now() // In case it wasn't started before
-            ]
-        );
+        $userId = Auth::id();
 
-        return response()->json(['message' => 'Chapter marked as completed']);
+        $progress = UserProgress::where('user_id', $userId)
+            ->with('chapter:id,title,chapter_number')
+            ->get();
+
+        // Calculate overall statistics
+        $totalChapters = Chapter::where('is_published', true)->count();
+        $completedChapters = UserProgress::where('user_id', $userId)
+            ->where('status', 'completed')
+            ->count();
+
+        $totalSlides = Chapter::where('is_published', true)
+            ->withCount('slides')
+            ->get()
+            ->sum('slides_count');
+
+        $completedSlides = SlideProgress::where('user_id', $userId)
+            ->where('completed', true)
+            ->count();
+
+        return response()->json([
+            'success' => true,
+            'statistics' => [
+                'total_chapters' => $totalChapters,
+                'completed_chapters' => $completedChapters,
+                'total_slides' => $totalSlides,
+                'completed_slides' => $completedSlides,
+                'overall_progress' => $totalSlides > 0 
+                    ? round(($completedSlides / $totalSlides) * 100) 
+                    : 0
+            ],
+            'chapter_progress' => $progress
+        ]);
     }
 }
