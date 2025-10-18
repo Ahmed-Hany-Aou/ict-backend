@@ -23,13 +23,24 @@ class Chapter extends Model
         return $this->hasMany(Quiz::class);
     }
 
-    public function userProgress()
-    {
-        return $this->hasMany(UserProgress::class);
-    }
+   // public function userProgress()
+    //{
+      //  return $this->hasMany(UserProgress::class);
+    //}
 
     public function sessionVideos()
     {
         return $this->hasMany(SessionVideo::class);
     }
+
+    public function slides()
+{
+    return $this->hasMany(Slide::class)->orderBy('slide_number');
+}
+
+public function userProgress($userId)
+{
+    
+    return $this->hasOne(UserProgress::class)->where('user_id', $userId);
+}
 }
