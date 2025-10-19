@@ -37,6 +37,7 @@ Route::middleware('api')->group(function () {
 
     // User progress
     Route::get('/user/progress', [ChapterController::class, 'getUserProgress']);
+    Route::post('/chapters/{id}/complete', [ChapterController::class, 'markComplete']);
     
 
 

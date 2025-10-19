@@ -8,6 +8,7 @@ use App\Models\UserProgress;
 use App\Models\SlideProgress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class ChapterController extends Controller
 {
@@ -131,4 +132,36 @@ class ChapterController extends Controller
             'chapter_progress' => $progress
         ]);
     }
+
+ public function markComplete($id)
+{
+    $userId = Auth::id();
+    $chapter = Chapter::findOrFail($id);
+    
+    // Step 1: Find the progress record or create it for the first time.
+    // This will set 'started_at' ONLY on the initial creation.
+    $progress = UserProgress::firstOrCreate(
+        [
+            'user_id' => $userId,
+            'chapter_id' => $chapter->id,
+        ],
+        [
+            'started_at' => now(), // Only runs if the record is new
+        ]
+    );
+    
+    // Step 2: Now, update the status to 'completed'.
+    // This runs every time the function is called.
+    $progress->update([
+        'status' => 'completed',
+        'completed_at' => now(),
+    ]);
+    
+    return response()->json([
+        'success' => true,
+        'message' => 'Chapter marked as completed'
+    ]);
+}
+
+
 }
