@@ -30,4 +30,13 @@ class UserProgress extends Model
     {
         return $this->belongsTo(Chapter::class);
     }
+
+    protected static function booted()
+{
+    static::creating(function ($progress) {
+        if (!$progress->started_at) {
+            $progress->started_at = now();
+        }
+    });
+}
 }

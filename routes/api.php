@@ -6,11 +6,11 @@ use App\Http\Controllers\Api\ChapterController;
 use App\Http\Controllers\Api\SlideController;
 
 
-
+/*
 Route::get('/chapters', [ChapterController::class, 'index']);
 Route::get('/chapters/{id}', [ChapterController::class, 'show']);
 Route::get('/chapters/{id}/slides', [SlideController::class, 'getChapterSlides']);
-
+*/
 Route::middleware('api')->group(function () {
     // Auth routes (no middleware needed)
     Route::post('/register', [AuthController::class, 'register']);
@@ -38,7 +38,11 @@ Route::middleware('api')->group(function () {
     // User progress
     Route::get('/user/progress', [ChapterController::class, 'getUserProgress']);
     Route::post('/chapters/{id}/complete', [ChapterController::class, 'markComplete']);
-    
+
+
+    Route::get('/chapters', [ChapterController::class, 'index']);
+    Route::get('/chapters/{id}', [ChapterController::class, 'show']);
+    Route::get('/chapters/{id}/slides', [SlideController::class, 'getChapterSlides']);
 
 
     });

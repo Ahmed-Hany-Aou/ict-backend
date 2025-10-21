@@ -8,8 +8,18 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use App\Models\User;
 
+
 class AuthController extends Controller
 {
+
+    /**
+     * Get the authenticated User.
+     */
+    public function user(Request $request)
+    {
+        return response()->json($request->user());
+    }
+
     public function register(Request $request)
     {
         $validator = Validator::make($request->all(), [
