@@ -165,27 +165,5 @@ class ChapterController extends Controller
         }
     }
 
-    public function markComplete($id)
-{
-    $userId = Auth::id();
-    $chapter = Chapter::findOrFail($id);
     
-    // Update or create user progress
-    UserProgress::updateOrCreate(
-        [
-            'user_id' => $userId,
-            'chapter_id' => $chapter->id,
-        ],
-        [
-            'status' => 'completed',
-            'completed_at' => now(),
-            'started_at' => DB::raw('COALESCE(started_at, NOW())'),
-        ]
-    );
-    
-    return response()->json([
-        'success' => true,
-        'message' => 'Chapter marked as completed'
-    ]);
-}
 }

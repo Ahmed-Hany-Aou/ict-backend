@@ -13,40 +13,61 @@ use Illuminate\Support\Facades\DB;
 class ChapterController extends Controller
 {
     /**
-     * Get all published chapters
+     * Get all chapters with user progress
      */
     public function index()
     {
+        $userId = Auth::id();
+        
         $chapters = Chapter::where('is_published', true)
             ->orderBy('chapter_number')
-            ->get();
-
-        // Add user progress if authenticated
-        if (Auth::check()) {
-            $userId = Auth::id();
-            
-            $chapters->each(function ($chapter) use ($userId) {
-                // Get overall chapter progress
-                $userProgress = UserProgress::where('user_id', $userId)
-                    ->where('chapter_id', $chapter->id)
-                    ->first();
-
-                // Calculate slide completion percentage
+            ->get()
+            ->map(function ($chapter) use ($userId) {
+                // Get total slides count
                 $totalSlides = $chapter->slides()->count();
-                $completedSlides = SlideProgress::where('user_id', $userId)
-                    ->where('chapter_id', $chapter->id)
+                
+                // Count completed slides
+                $completedSlides = SlideProgress::where('chapter_id', $chapter->id)
+                    ->where('user_id', $userId)
                     ->where('completed', true)
                     ->count();
-
-                $chapter->progress_percentage = $totalSlides > 0 
+                
+                // Calculate progress percentage
+                $progressPercentage = $totalSlides > 0 
                     ? round(($completedSlides / $totalSlides) * 100) 
                     : 0;
                 
-                $chapter->status = $userProgress ? $userProgress->status : 'not_started';
-                $chapter->slides_count = $totalSlides;
-                $chapter->completed_slides = $completedSlides;
+                // Check user_progress table for chapter completion status
+                $userProgress = UserProgress::where('user_id', $userId)
+                    ->where('chapter_id', $chapter->id)
+                    ->first();
+                
+                // Determine status
+                $status = 'not_started';
+                if ($userProgress) {
+                    $status = $userProgress->status;
+                } elseif ($progressPercentage > 0 && $progressPercentage < 100) {
+                    $status = 'in_progress';
+                } elseif ($progressPercentage === 100) {
+                    $status = 'completed';
+                }
+                
+                return [
+                    'id' => $chapter->id,
+                    'title' => $chapter->title,
+                    'description' => $chapter->description,
+                    'chapter_number' => $chapter->chapter_number,
+                    'is_published' => $chapter->is_published,
+                    'is_premium' => $chapter->is_premium,
+                    'total_slides' => $totalSlides,
+                    'slides_count' => $totalSlides, // Alias for compatibility
+                    'completed_slides' => $completedSlides,
+                    'progress_percentage' => $progressPercentage,
+                    'status' => $status,
+                    'started_at' => $userProgress ? $userProgress->started_at : null,
+                    'completed_at' => $userProgress ? $userProgress->completed_at : null,
+                ];
             });
-        }
 
         return response()->json([
             'success' => true,
@@ -82,7 +103,7 @@ class ChapterController extends Controller
                     ->where('slide_id', $slide->id)
                     ->first();
 
-                $slide->completed = $progress ? $progress->completed : false;
+                $slide->is_completed = $progress ? $progress->completed : false;
             });
         }
 
@@ -93,30 +114,67 @@ class ChapterController extends Controller
     }
 
     /**
-     * Get user's progress for all chapters
+     * Mark chapter as completed
+     */
+  public function markComplete($id)
+    {
+        $userId = Auth::id();
+        $chapter = Chapter::findOrFail($id);
+        
+        // Replace all the old logic with this one block
+        UserProgress::query()->updateOrInsert(
+            [
+                // Columns to MATCH against
+                'user_id' => $userId,
+                'chapter_id' => $chapter->id,
+            ],
+            [
+                // Columns to UPDATE or INSERT
+                'status' => 'completed',
+                'completed_at' => now(),
+                // Your original logic will work here because updateOrInsert
+                // does not use Eloquent model casting.
+                'started_at' => DB::raw('COALESCE(started_at, NOW())'), 
+            ]
+        );
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Chapter marked as completed'
+        ]);
+    }
+
+
+    /**
+     * Get user's overall progress
      */
     public function getUserProgress()
     {
         $userId = Auth::id();
 
-        $progress = UserProgress::where('user_id', $userId)
-            ->with('chapter:id,title,chapter_number')
-            ->get();
-
-        // Calculate overall statistics
+        // Count total published chapters
         $totalChapters = Chapter::where('is_published', true)->count();
+        
+        // Count completed chapters from user_progress table
         $completedChapters = UserProgress::where('user_id', $userId)
             ->where('status', 'completed')
             ->count();
 
-        $totalSlides = Chapter::where('is_published', true)
-            ->withCount('slides')
-            ->get()
-            ->sum('slides_count');
+        // Count total slides in published chapters
+        $totalSlides = DB::table('slides')
+            ->join('chapters', 'slides.chapter_id', '=', 'chapters.id')
+            ->where('chapters.is_published', true)
+            ->count();
 
+        // Count completed slides
         $completedSlides = SlideProgress::where('user_id', $userId)
             ->where('completed', true)
             ->count();
+
+        // Calculate overall progress
+        $overallProgress = $totalSlides > 0 
+            ? round(($completedSlides / $totalSlides) * 100) 
+            : 0;
 
         return response()->json([
             'success' => true,
@@ -125,43 +183,34 @@ class ChapterController extends Controller
                 'completed_chapters' => $completedChapters,
                 'total_slides' => $totalSlides,
                 'completed_slides' => $completedSlides,
-                'overall_progress' => $totalSlides > 0 
-                    ? round(($completedSlides / $totalSlides) * 100) 
-                    : 0
-            ],
-            'chapter_progress' => $progress
+                'overall_progress' => $overallProgress
+            ]
         ]);
     }
 
- public function markComplete($id)
-{
-    $userId = Auth::id();
-    $chapter = Chapter::findOrFail($id);
-    
-    // Step 1: Find the progress record or create it for the first time.
-    // This will set 'started_at' ONLY on the initial creation.
-    $progress = UserProgress::firstOrCreate(
-        [
-            'user_id' => $userId,
-            'chapter_id' => $chapter->id,
-        ],
-        [
-            'started_at' => now(), // Only runs if the record is new
-        ]
-    );
-    
-    // Step 2: Now, update the status to 'completed'.
-    // This runs every time the function is called.
-    $progress->update([
-        'status' => 'completed',
-        'completed_at' => now(),
-    ]);
-    
-    return response()->json([
-        'success' => true,
-        'message' => 'Chapter marked as completed'
-    ]);
-}
+    /**
+     * Start a chapter
+     */
+    public function start($id)
+    {
+        $userId = Auth::id();
+        $chapter = Chapter::findOrFail($id);
+        
+        // Mark chapter as started if not already started
+        UserProgress::firstOrCreate(
+            [
+                'user_id' => $userId,
+                'chapter_id' => $chapter->id,
+            ],
+            [
+                'status' => 'in_progress',
+                'started_at' => now(),
+            ]
+        );
 
-
+        return response()->json([
+            'success' => true,
+            'message' => 'Chapter started'
+        ]);
+    }
 }
