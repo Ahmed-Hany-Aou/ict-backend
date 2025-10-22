@@ -10,31 +10,48 @@ use Illuminate\Support\Facades\Auth;
 
 class SlideController extends Controller
 {
-    public function getChapterSlides($chapterId)
+   public function getChapterSlides($chapterId)
     {
         $slides = Slide::where('chapter_id', $chapterId)
             ->orderBy('slide_number')
             ->get();
 
-        if (Auth::check()) {
-            $userId = Auth::id();
-            $slides->each(function ($slide) use ($userId) {
+        $userId = Auth::id(); 
+
+        // Map slides to the format the frontend expects
+        $slidesData = $slides->map(function ($slide) use ($userId) {
+            
+            $isCompleted = false; 
+            
+            if ($userId) {
                 $progress = SlideProgress::where('user_id', $userId)
                     ->where('slide_id', $slide->id)
                     ->first();
+                $isCompleted = $progress ? (bool)$progress->completed : false; 
+            }
+
+            return [
+                'id' => $slide->id,
+                'chapter_id' => $slide->chapter_id,
+                'slide_number' => $slide->slide_number,
+                'type' => $slide->type,
                 
-                $slide->user_completed = $progress ? $progress->completed : false;
-                $slide->last_viewed = $progress ? $progress->last_viewed_at : null;
-            });
-        }
+                // --- FIX 1: 'content' is already an object, no decode needed ---
+                'content' => $slide->content, 
+                
+                // --- FIX 2: Remove video_url, it's not on the slide ---
+                // 'video_url' => $slide->video_url,  <-- DELETE THIS LINE
+                
+                'is_completed' => $isCompleted, 
+            ];
+        });
 
         return response()->json([
             'success' => true,
-            'slides' => $slides
+            'slides' => $slidesData
         ]);
-    }
-
-    public function show($id)
+    }  
+     public function show($id)
     {
         $slide = Slide::findOrFail($id);
 
