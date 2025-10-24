@@ -16,18 +16,18 @@ class SlideController extends Controller
             ->orderBy('slide_number')
             ->get();
 
-        $userId = Auth::id(); 
+        $userId = Auth::id();
 
         // Map slides to the format the frontend expects
         $slidesData = $slides->map(function ($slide) use ($userId) {
-            
-            $isCompleted = false; 
-            
+
+            $isCompleted = false;
+
             if ($userId) {
                 $progress = SlideProgress::where('user_id', $userId)
                     ->where('slide_id', $slide->id)
                     ->first();
-                $isCompleted = $progress ? (bool)$progress->completed : false; 
+                $isCompleted = $progress ? (bool)$progress->completed : false;
             }
 
             return [
@@ -35,14 +35,14 @@ class SlideController extends Controller
                 'chapter_id' => $slide->chapter_id,
                 'slide_number' => $slide->slide_number,
                 'type' => $slide->type,
-                
-                // --- FIX 1: 'content' is already an object, no decode needed ---
-                'content' => $slide->content, 
-                
-                // --- FIX 2: Remove video_url, it's not on the slide ---
-                // 'video_url' => $slide->video_url,  <-- DELETE THIS LINE
-                
-                'is_completed' => $isCompleted, 
+
+                // --- THIS IS THE CRITICAL FIX ---
+                // Decode the JSON string from the database into a PHP array/object
+                'content' => json_decode($slide->content),
+
+                'video_url' => $slide->video_url, // Include video_url if it might exist on slides in the future
+
+                'is_completed' => $isCompleted,
             ];
         });
 
@@ -50,8 +50,9 @@ class SlideController extends Controller
             'success' => true,
             'slides' => $slidesData
         ]);
-    }  
-     public function show($id)
+    } 
+
+    public function show($id)
     {
         $slide = Slide::findOrFail($id);
 
