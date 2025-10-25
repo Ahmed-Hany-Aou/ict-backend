@@ -3,7 +3,13 @@
     "allow": [
       "Bash(php artisan migrate:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Add meeting/video scheduling features to chapters and slides\n\n- Add video_type enum (none, scheduled, recorded) to chapters and slides\n- Add meeting_datetime and meeting_link fields for scheduled sessions\n- Update ChapterController to include meeting info and is_upcoming flag\n- Add helper methods to Slide model for meeting status checks\n- Fix migration to reference correct column in slides table\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Add meeting/video scheduling features to chapters and slides\n\n- Add video_type enum (none, scheduled, recorded) to chapters and slides\n- Add meeting_datetime and meeting_link fields for scheduled sessions\n- Update ChapterController to include meeting info and is_upcoming flag\n- Add helper methods to Slide model for meeting status checks\n- Fix migration to reference correct column in slides table\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Read(//c/MAMP/htdocs/project 28/**)",
+      "Read(//c/MAMP/htdocs/**)",
+      "Bash(php artisan db:seed:*)",
+      "Bash(php artisan:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

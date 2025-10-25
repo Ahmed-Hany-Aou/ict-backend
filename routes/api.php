@@ -23,9 +23,13 @@ Route::middleware('api')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::post('/quiz/submit', [QuizController::class, 'submitQuiz']);
-    Route::get('/quiz/results', [QuizController::class, 'getResults']);
     Route::get('/profile', [AuthController::class, 'profile']);
+
+    // Quiz routes
+    Route::get('/chapters/{chapterId}/quiz', [QuizController::class, 'getQuizByChapter']);
+    Route::post('/quizzes/{quizId}/submit', [QuizController::class, 'submitQuiz']);
+    Route::get('/quiz/results', [QuizController::class, 'getResults']);
+    Route::get('/quiz/results/{resultId}', [QuizController::class, 'getResult']);
 
 
     // Slides
