@@ -9,13 +9,14 @@ class Chapter extends Model
     use HasFactory;
 
     protected $fillable = [
-        'title', 'description', 'chapter_number', 'content', 'video_url', 'is_published', 'is_premium'
+        'title', 'description', 'chapter_number', 'content', 'video_url', 'video_type', 'meeting_link', 'meeting_datetime', 'is_published', 'is_premium'
     ];
 
     protected $casts = [
         'content' => 'array',
         'is_published' => 'boolean',
-        'is_premium' => 'boolean'
+        'is_premium' => 'boolean',
+        'meeting_datetime' => 'datetime'
     ];
 
     public function quizzes()

@@ -66,6 +66,11 @@ class ChapterController extends Controller
                     'status' => $status,
                     'started_at' => $userProgress ? $userProgress->started_at : null,
                     'completed_at' => $userProgress ? $userProgress->completed_at : null,
+                    'video_url' => $chapter->video_url ?? null,
+                    'video_type' => $chapter->video_type ?? 'none',
+                    'meeting_datetime' => $chapter->meeting_datetime ? $chapter->meeting_datetime->format('Y-m-d H:i:s') : null,
+                    'is_upcoming' => ($chapter->video_type === 'scheduled' && $chapter->meeting_datetime) ? (now() < $chapter->meeting_datetime) : null,
+                    'meeting_link' => $chapter->meeting_link ?? null,
                 ];
             });
 
@@ -107,9 +112,15 @@ class ChapterController extends Controller
             });
         }
 
+        // Add is_upcoming for scheduled meetings
+        $chapterData = $chapter->toArray();
+        if ($chapter->video_type === 'scheduled' && $chapter->meeting_datetime) {
+            $chapterData['is_upcoming'] = now() < $chapter->meeting_datetime;
+        }
+
         return response()->json([
             'success' => true,
-            'chapter' => $chapter
+            'chapter' => $chapterData
         ]);
     }
 
