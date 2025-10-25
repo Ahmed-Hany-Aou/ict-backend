@@ -14,10 +14,13 @@ class Slide extends Model
         'slide_number',
         'type',
         'content',
+        'meeting_link',
+        'video_url',
     ];
 
     protected $casts = [
         'content' => 'array',
+        'meeting_datetime' => 'datetime',
     ];
 
     public function chapter()
@@ -33,5 +36,22 @@ class Slide extends Model
     public function userProgress($userId)
     {
         return $this->hasOne(SlideProgress::class)->where('user_id', $userId);
+    }
+    // Helper methods
+    public function hasScheduledMeeting()
+    {
+        return $this->video_type === 'scheduled';
+    }
+
+    public function hasRecordedVideo()
+    {
+        return $this->video_type === 'recorded';
+    }
+
+    public function isMeetingUpcoming()
+    {
+        return $this->hasScheduledMeeting() && 
+               $this->meeting_datetime && 
+               $this->meeting_datetime->isFuture();
     }
 }
