@@ -9,7 +9,7 @@ use App\Models\QuizResult;
 class QuizController extends Controller
 {
     /**
-     * Get quiz by chapter ID
+     * Get quiz by chapter ID with shuffled questions and options
      */
     public function getQuizByChapter($chapterId)
     {
@@ -24,14 +24,37 @@ class QuizController extends Controller
             ], 404);
         }
 
+        // Get questions and shuffle both questions and options
+        $questions = $quiz->questions;
+
+        // Shuffle options within each question
+        foreach ($questions as &$question) {
+            if (isset($question['options']) && is_array($question['options'])) {
+                // Store the correct answer text before shuffling
+                $correctAnswerText = $question['options'][$question['correct_answer']];
+
+                // Shuffle the options
+                shuffle($question['options']);
+
+                // Find the new index of the correct answer after shuffling
+                $question['correct_answer'] = array_search($correctAnswerText, $question['options']);
+            }
+        }
+
+        // Shuffle the questions array
+        shuffle($questions);
+
+        $quizData = $quiz->toArray();
+        $quizData['questions'] = $questions;
+
         return response()->json([
             'success' => true,
-            'quiz' => $quiz
+            'quiz' => $quizData
         ]);
     }
 
     /**
-     * Get quiz by ID
+     * Get quiz by ID with shuffled questions and options
      */
     public function getQuiz($quizId)
     {
@@ -46,9 +69,32 @@ class QuizController extends Controller
             ], 404);
         }
 
+        // Get questions and shuffle both questions and options
+        $questions = $quiz->questions;
+
+        // Shuffle options within each question
+        foreach ($questions as &$question) {
+            if (isset($question['options']) && is_array($question['options'])) {
+                // Store the correct answer text before shuffling
+                $correctAnswerText = $question['options'][$question['correct_answer']];
+
+                // Shuffle the options
+                shuffle($question['options']);
+
+                // Find the new index of the correct answer after shuffling
+                $question['correct_answer'] = array_search($correctAnswerText, $question['options']);
+            }
+        }
+
+        // Shuffle the questions array
+        shuffle($questions);
+
+        $quizData = $quiz->toArray();
+        $quizData['questions'] = $questions;
+
         return response()->json([
             'success' => true,
-            'quiz' => $quiz
+            'quiz' => $quizData
         ]);
     }
 
@@ -96,17 +142,30 @@ class QuizController extends Controller
         try {
             $request->validate([
                 'answers' => 'required|array',
+                'questions' => 'required|array', // The shuffled questions from frontend
                 'time_taken' => 'nullable|integer'
             ]);
 
             $quiz = Quiz::findOrFail($quizId);
             $userAnswers = $request->answers;
-            $questions = $quiz->questions;
+
+            // IMPORTANT: Use the shuffled questions sent from frontend for accurate scoring
+            // The frontend receives questions+options shuffled and sends them back with answers
+            // This ensures the correct_answer index matches the shuffled options array
+            $questions = $request->questions;
 
             if (empty($questions)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Quiz has no questions'
+                ], 400);
+            }
+
+            // Validate that the number of questions matches the original quiz
+            if (count($questions) !== count($quiz->questions)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid quiz data: question count mismatch'
                 ], 400);
             }
 
@@ -122,6 +181,8 @@ class QuizController extends Controller
 
             foreach ($questions as $index => $question) {
                 $userAnswer = $userAnswers[$index] ?? null;
+
+                // Compare user's answer index with correct answer index in the shuffled options
                 $isCorrect = $userAnswer !== null && $userAnswer == $question['correct_answer'];
 
                 if ($isCorrect) {
