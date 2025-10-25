@@ -9,7 +9,11 @@
       "Read(//c/MAMP/htdocs/**)",
       "Bash(php artisan db:seed:*)",
       "Bash(php artisan:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(cp:*)",
+      "Bash(php -r:*)",
+      "Read(//c/c/MAMP/htdocs/**)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

@@ -9,12 +9,14 @@ class QuizResult extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'quiz_id', 'attempt_number', 'answers', 'score', 'total_questions', 'percentage', 'passed', 'time_taken'
+        'user_id', 'quiz_id', 'attempt_number', 'answers', 'questions_data', 'score', 'total_questions', 'percentage', 'passed', 'time_taken'
     ];
 
     protected $casts = [
         'answers' => 'array',
-        'passed' => 'boolean'
+        'questions_data' => 'array',
+        'passed' => 'boolean',
+        'time_taken' => 'integer'
     ];
 
     public function user()
