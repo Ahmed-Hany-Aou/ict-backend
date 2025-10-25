@@ -9,7 +9,7 @@ use App\Models\QuizResult;
 class QuizController extends Controller
 {
     /**
-     * Get quiz by chapter ID with randomized questions/answers
+     * Get quiz by chapter ID
      */
     public function getQuizByChapter($chapterId)
     {
@@ -24,35 +24,14 @@ class QuizController extends Controller
             ], 404);
         }
 
-        // Randomize questions and their answers
-        $questions = $quiz->questions;
-        shuffle($questions); // Randomize question order
-
-        // Randomize answers within each question
-        foreach ($questions as &$question) {
-            if (isset($question['options']) && is_array($question['options'])) {
-                // Store the correct answer text before shuffling
-                $correctAnswerText = $question['options'][$question['correct_answer']];
-                
-                // Shuffle the options
-                shuffle($question['options']);
-                
-                // Find the new index of the correct answer
-                $question['correct_answer'] = array_search($correctAnswerText, $question['options']);
-            }
-        }
-
-        $quizData = $quiz->toArray();
-        $quizData['questions'] = $questions;
-
         return response()->json([
             'success' => true,
-            'quiz' => $quizData
+            'quiz' => $quiz
         ]);
     }
 
     /**
-     * Get quiz by ID with randomization
+     * Get quiz by ID
      */
     public function getQuiz($quizId)
     {
@@ -67,24 +46,9 @@ class QuizController extends Controller
             ], 404);
         }
 
-        // Apply same randomization as above
-        $questions = $quiz->questions;
-        shuffle($questions);
-
-        foreach ($questions as &$question) {
-            if (isset($question['options']) && is_array($question['options'])) {
-                $correctAnswerText = $question['options'][$question['correct_answer']];
-                shuffle($question['options']);
-                $question['correct_answer'] = array_search($correctAnswerText, $question['options']);
-            }
-        }
-
-        $quizData = $quiz->toArray();
-        $quizData['questions'] = $questions;
-
         return response()->json([
             'success' => true,
-            'quiz' => $quizData
+            'quiz' => $quiz
         ]);
     }
 
@@ -129,61 +93,97 @@ class QuizController extends Controller
      */
     public function submitQuiz(Request $request, $quizId)
     {
-        $request->validate([
-            'answers' => 'required|array',
-            'time_taken' => 'nullable|integer'
-        ]);
+        try {
+            $request->validate([
+                'answers' => 'required|array',
+                'time_taken' => 'nullable|integer'
+            ]);
 
-        $quiz = Quiz::findOrFail($quizId);
-        $userAnswers = $request->answers;
-        $questions = $quiz->questions;
+            $quiz = Quiz::findOrFail($quizId);
+            $userAnswers = $request->answers;
+            $questions = $quiz->questions;
 
-        // Calculate attempt number
-        $attemptNumber = QuizResult::where('user_id', auth()->id())
-            ->where('quiz_id', $quizId)
-            ->count() + 1;
-
-        // Calculate score
-        $score = 0;
-        $totalQuestions = count($questions);
-
-        foreach ($questions as $index => $question) {
-            $userAnswer = $userAnswers[$index] ?? null;
-            if ($userAnswer !== null && $userAnswer == $question['correct_answer']) {
-                $score++;
+            if (empty($questions)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Quiz has no questions'
+                ], 400);
             }
-        }
 
-        $percentage = ($score / $totalQuestions) * 100;
-        $passed = $percentage >= $quiz->passing_score;
+            // Calculate attempt number
+            $attemptNumber = QuizResult::where('user_id', auth()->id())
+                ->where('quiz_id', $quizId)
+                ->count() + 1;
 
-        // Save result
-        $quizResult = QuizResult::create([
-            'user_id' => auth()->id(),
-            'quiz_id' => $quiz->id,
-            'attempt_number' => $attemptNumber,
-            'answers' => $userAnswers,
-            'score' => $score,
-            'total_questions' => $totalQuestions,
-            'percentage' => $percentage,
-            'passed' => $passed,
-            'time_taken' => $request->time_taken
-        ]);
+            // Calculate score and prepare detailed results
+            $score = 0;
+            $totalQuestions = count($questions);
+            $detailedResults = [];
 
-        return response()->json([
-            'success' => true,
-            'message' => $passed ? 'Congratulations! You passed!' : 'Keep studying and try again!',
-            'result' => [
-                'id' => $quizResult->id,
+            foreach ($questions as $index => $question) {
+                $userAnswer = $userAnswers[$index] ?? null;
+                $isCorrect = $userAnswer !== null && $userAnswer == $question['correct_answer'];
+
+                if ($isCorrect) {
+                    $score++;
+                }
+
+                // Store detailed question data for review
+                $detailedResults[] = [
+                    'question' => $question['question'],
+                    'options' => $question['options'],
+                    'user_answer' => $userAnswer,
+                    'correct_answer' => $question['correct_answer'],
+                    'explanation' => $question['explanation'] ?? null,
+                    'is_correct' => $isCorrect
+                ];
+            }
+
+            $percentage = ($score / $totalQuestions) * 100;
+            $passed = $percentage >= $quiz->passing_score;
+
+            // Save result
+            $quizResult = QuizResult::create([
+                'user_id' => auth()->id(),
+                'quiz_id' => $quiz->id,
                 'attempt_number' => $attemptNumber,
+                'answers' => $userAnswers,
+                'questions_data' => $detailedResults,
                 'score' => $score,
                 'total_questions' => $totalQuestions,
-                'percentage' => round($percentage, 2),
+                'percentage' => $percentage,
                 'passed' => $passed,
-                'passing_score' => $quiz->passing_score,
-                'time_taken' => $request->time_taken
-            ]
-        ]);
+                'time_taken' => $request->time_taken ?? null
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => $passed ? 'Congratulations! You passed!' : 'Keep studying and try again!',
+                'result' => [
+                    'id' => $quizResult->id,
+                    'attempt_number' => $attemptNumber,
+                    'score' => $score,
+                    'total_questions' => $totalQuestions,
+                    'percentage' => round($percentage, 2),
+                    'passed' => $passed,
+                    'passing_score' => $quiz->passing_score,
+                    'time_taken' => $request->time_taken
+                ]
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Quiz submission error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to submit quiz. Please try again.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -221,17 +221,156 @@ class QuizController extends Controller
     }
 
     /**
-     * Get specific quiz result
+     * Get specific quiz result with detailed answers
      */
     public function getResult($resultId)
     {
-        $result = QuizResult::with('quiz')
+        $result = QuizResult::with('quiz.chapter')
             ->where('user_id', auth()->id())
             ->findOrFail($resultId);
+
+        // If questions_data exists, enhance it; otherwise build it from quiz questions
+        if (!$result->questions_data && $result->quiz) {
+            $questions = $result->quiz->questions;
+            $userAnswers = $result->answers;
+            $detailedResults = [];
+
+            foreach ($questions as $index => $question) {
+                $userAnswer = $userAnswers[$index] ?? null;
+                $isCorrect = $userAnswer !== null && $userAnswer == $question['correct_answer'];
+
+                $detailedResults[] = [
+                    'question_number' => $index + 1,
+                    'question' => $question['question'],
+                    'options' => $question['options'],
+                    'user_answer' => $userAnswer,
+                    'user_answer_text' => $userAnswer !== null && isset($question['options'][$userAnswer]) ? $question['options'][$userAnswer] : 'Not answered',
+                    'correct_answer' => $question['correct_answer'],
+                    'correct_answer_text' => $question['options'][$question['correct_answer']],
+                    'explanation' => $question['explanation'] ?? null,
+                    'is_correct' => $isCorrect
+                ];
+            }
+
+            $result->questions_data = $detailedResults;
+        } else if ($result->questions_data) {
+            // Ensure all questions have the text fields
+            $enhanced = [];
+            foreach ($result->questions_data as $index => $item) {
+                $enhancedItem = $item;
+
+                if (!isset($enhancedItem['question_number'])) {
+                    $enhancedItem['question_number'] = $index + 1;
+                }
+                if (!isset($enhancedItem['user_answer_text'])) {
+                    if ($enhancedItem['user_answer'] !== null && isset($enhancedItem['options'][$enhancedItem['user_answer']])) {
+                        $enhancedItem['user_answer_text'] = $enhancedItem['options'][$enhancedItem['user_answer']];
+                    } else {
+                        $enhancedItem['user_answer_text'] = 'Not answered';
+                    }
+                }
+                if (!isset($enhancedItem['correct_answer_text'])) {
+                    $enhancedItem['correct_answer_text'] = $enhancedItem['options'][$enhancedItem['correct_answer']];
+                }
+
+                $enhanced[] = $enhancedItem;
+            }
+            $result->questions_data = $enhanced;
+        }
 
         return response()->json([
             'success' => true,
             'result' => $result
         ]);
+    }
+
+    /**
+     * Get detailed review of a quiz result (all questions with answers)
+     */
+    public function getDetailedResult($resultId)
+    {
+        try {
+            $result = QuizResult::with('quiz.chapter')
+                ->where('user_id', auth()->id())
+                ->findOrFail($resultId);
+
+            if (!$result->quiz) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Quiz data not found'
+                ], 404);
+            }
+
+            // Build detailed results if not stored
+            if (!$result->questions_data || empty($result->questions_data)) {
+                $questions = $result->quiz->questions;
+                $userAnswers = $result->answers;
+                $detailedResults = [];
+
+                foreach ($questions as $index => $question) {
+                    $userAnswer = $userAnswers[$index] ?? null;
+                    $isCorrect = $userAnswer !== null && $userAnswer == $question['correct_answer'];
+
+                    $detailedResults[] = [
+                        'question_number' => $index + 1,
+                        'question' => $question['question'],
+                        'options' => $question['options'],
+                        'user_answer' => $userAnswer,
+                        'user_answer_text' => $userAnswer !== null && isset($question['options'][$userAnswer]) ? $question['options'][$userAnswer] : 'Not answered',
+                        'correct_answer' => $question['correct_answer'],
+                        'correct_answer_text' => $question['options'][$question['correct_answer']],
+                        'explanation' => $question['explanation'] ?? null,
+                        'is_correct' => $isCorrect
+                    ];
+                }
+            } else {
+                $detailedResults = [];
+                // Add question numbers and answer text if missing
+                foreach ($result->questions_data as $index => $item) {
+                    $detailedItem = $item;
+
+                    if (!isset($detailedItem['question_number'])) {
+                        $detailedItem['question_number'] = $index + 1;
+                    }
+                    if (!isset($detailedItem['user_answer_text'])) {
+                        if ($detailedItem['user_answer'] !== null && isset($detailedItem['options'][$detailedItem['user_answer']])) {
+                            $detailedItem['user_answer_text'] = $detailedItem['options'][$detailedItem['user_answer']];
+                        } else {
+                            $detailedItem['user_answer_text'] = 'Not answered';
+                        }
+                    }
+                    if (!isset($detailedItem['correct_answer_text'])) {
+                        $detailedItem['correct_answer_text'] = $detailedItem['options'][$detailedItem['correct_answer']];
+                    }
+
+                    $detailedResults[] = $detailedItem;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'result' => [
+                    'id' => $result->id,
+                    'quiz_title' => $result->quiz->title,
+                    'chapter_name' => $result->quiz->chapter->title ?? 'N/A',
+                    'attempt_number' => $result->attempt_number,
+                    'score' => $result->score,
+                    'total_questions' => $result->total_questions,
+                    'percentage' => round($result->percentage, 2),
+                    'passed' => $result->passed,
+                    'passing_score' => $result->quiz->passing_score,
+                    'time_taken' => $result->time_taken,
+                    'created_at' => $result->created_at,
+                    'questions' => $detailedResults
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Get detailed result error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get detailed result',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -34,6 +34,7 @@ Route::middleware('api')->group(function () {
     Route::post('/quizzes/{quizId}/submit', [QuizController::class, 'submitQuiz']);
     Route::get('/quiz/results', [QuizController::class, 'getResults']);
     Route::get('/quiz/results/{resultId}', [QuizController::class, 'getResult']);
+    Route::get('/quiz/results/{resultId}/detailed', [QuizController::class, 'getDetailedResult']);
 
 
     // Slides
