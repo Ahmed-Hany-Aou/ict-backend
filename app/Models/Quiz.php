@@ -9,7 +9,7 @@ class Quiz extends Model
     use HasFactory;
 
     protected $fillable = [
-        'chapter_id', 'title', 'questions', 'passing_score', 'is_active'
+        'chapter_id', 'title', 'description', 'questions', 'passing_score', 'is_active'
     ];
 
     protected $casts = [
