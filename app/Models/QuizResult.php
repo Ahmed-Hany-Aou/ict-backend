@@ -9,7 +9,7 @@ class QuizResult extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'quiz_id', 'answers', 'score', 'total_questions', 'percentage', 'passed'
+        'user_id', 'quiz_id', 'attempt_number', 'answers', 'score', 'total_questions', 'percentage', 'passed', 'time_taken'
     ];
 
     protected $casts = [

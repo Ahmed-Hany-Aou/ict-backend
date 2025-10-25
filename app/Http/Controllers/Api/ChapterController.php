@@ -182,10 +182,25 @@ class ChapterController extends Controller
             ->where('completed', true)
             ->count();
 
-        // Calculate overall progress
-        $overallProgress = $totalSlides > 0 
-            ? round(($completedSlides / $totalSlides) * 100) 
-            : 0;
+        // Count total active quizzes
+        $totalQuizzes = DB::table('quizzes')
+            ->where('is_active', true)
+            ->count();
+
+        // Count passed quizzes (best attempt only)
+        $passedQuizzes = DB::table('quiz_results')
+            ->select('quiz_id')
+            ->where('user_id', $userId)
+            ->where('passed', true)
+            ->groupBy('quiz_id')
+            ->get()
+            ->count();
+
+        // Calculate weighted progress
+        // Slides: 60%, Quizzes: 40%
+        $slideProgress = $totalSlides > 0 ? ($completedSlides / $totalSlides) * 60 : 0;
+        $quizProgress = $totalQuizzes > 0 ? ($passedQuizzes / $totalQuizzes) * 40 : 0;
+        $overallProgress = round($slideProgress + $quizProgress);
 
         return response()->json([
             'success' => true,
@@ -194,6 +209,10 @@ class ChapterController extends Controller
                 'completed_chapters' => $completedChapters,
                 'total_slides' => $totalSlides,
                 'completed_slides' => $completedSlides,
+                'total_quizzes' => $totalQuizzes,
+                'passed_quizzes' => $passedQuizzes,
+                'slide_progress' => round($slideProgress),
+                'quiz_progress' => round($quizProgress),
                 'overall_progress' => $overallProgress
             ]
         ]);
