@@ -13,7 +13,14 @@
       "Bash(cp:*)",
       "Bash(php -r:*)",
       "Read(//c/c/MAMP/htdocs/**)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(php -l:*)",
+      "Bash(mysql:*)",
+      "Bash(php test_shuffling.php:*)",
+      "Bash(php test_full_quiz_flow.php:*)",
+      "Bash(php test_detailed_scoring.php:*)",
+      "Bash(php test_controlled_quiz.php:*)",
+      "Bash(php test_quiz_shuffling.php:*)"
     ],
     "deny": [],
     "ask": []
