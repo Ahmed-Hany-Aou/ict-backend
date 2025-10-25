@@ -26,6 +26,10 @@ Route::middleware('api')->group(function () {
     Route::get('/profile', [AuthController::class, 'profile']);
 
     // Quiz routes
+    Route::get('/quizzes', [QuizController::class, 'getAllQuizzes']);
+    Route::get('/quizzes/category/{category}', [QuizController::class, 'getQuizzesByCategory']);
+    Route::get('/quizzes/{quizId}', [QuizController::class, 'getQuiz']);
+    Route::get('/quizzes/{quizId}/attempts', [QuizController::class, 'getQuizAttempts']);
     Route::get('/chapters/{chapterId}/quiz', [QuizController::class, 'getQuizByChapter']);
     Route::post('/quizzes/{quizId}/submit', [QuizController::class, 'submitQuiz']);
     Route::get('/quiz/results', [QuizController::class, 'getResults']);
