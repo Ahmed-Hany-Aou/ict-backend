@@ -20,7 +20,9 @@
       "Bash(php test_full_quiz_flow.php:*)",
       "Bash(php test_detailed_scoring.php:*)",
       "Bash(php test_controlled_quiz.php:*)",
-      "Bash(php test_quiz_shuffling.php:*)"
+      "Bash(php test_quiz_shuffling.php:*)",
+      "Bash(npm install:*)",
+      "Bash(php test_auth_endpoint.php:*)"
     ],
     "deny": [],
     "ask": []

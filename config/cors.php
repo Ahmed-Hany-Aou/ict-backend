@@ -5,7 +5,12 @@ return [
     
     'allowed_methods' => ['*'],
     
-    'allowed_origins' => ['http://localhost:3000'],
+    'allowed_origins' => env('FRONTEND_URL') === '*' ? ['*'] : array_filter([
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'https://ict-frontend-production.up.railway.app',
+        env('FRONTEND_URL'),
+    ]),
     
     'allowed_origins_patterns' => [],
     

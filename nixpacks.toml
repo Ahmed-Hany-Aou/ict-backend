@@ -1,0 +1,42 @@
+# 1. Setup PHP, extensions, and Apache
+[phases.setup]
+nixPkgs = ["php82", "php82Extensions.pdo", "php82Extensions.pdo_mysql", "php82Extensions.mbstring", "php82Extensions.dom", "php82Extensions.fileinfo", "php82Extensions.zip", "php82Extensions.curl", "php82Extensions.tokenizer", "php82Extensions.xml", "apacheHttpd"]
+aptPkgs = ["libapache2-mod-php8.2"]
+
+# Configure Apache for logging and modules
+run.preInstall = """
+  echo "LoadModule rewrite_module modules/mod_rewrite.so" >> /etc/apache2/httpd.conf
+  echo "LoadModule headers_module modules/mod_headers.so" >> /etc/apache2/httpd.conf
+  echo "ServerName railway" >> /etc/apache2/httpd.conf
+  echo "Listen 8080" >> /etc/apache2/httpd.conf
+  # Send Apache errors to stdout/stderr so they appear in Railway logs
+  echo "ErrorLog /dev/stderr" >> /etc/apache2/httpd.conf
+  echo "CustomLog /dev/stdout combined" >> /etc/apache2/httpd.conf
+"""
+
+# 2. Install composer dependencies
+[phases.install]
+cmds = [
+    "composer install --optimize-autoloader --no-dev"
+]
+
+# 3. Build the application (cache config, routes, etc.)
+[phases.build]
+cmds = [
+    "php artisan optimize:clear",
+    "php artisan optimize",
+    "php artisan storage:link"
+]
+
+# 4. Deploy (run migrations, seeders, and fix permissions)
+[phases.deploy]
+cmds = [
+    "php artisan migrate --force",
+    "php artisan db:seed --force",
+    "chown -R www-data:www-data /app/storage /app/bootstrap/cache",
+    "chmod -R 775 /app/storage /app/bootstrap/cache"
+]
+
+# 5. Start the production server (Apache)
+[start]
+cmd = "heroku-php-apache2 public/"
