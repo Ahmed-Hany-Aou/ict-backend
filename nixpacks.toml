@@ -1,6 +1,6 @@
-# 1. Setup PHP and extensions
+# 1. Setup PHP, extensions, and Apache
 [phases.setup]
-nixPkgs = ["php82", "php82Extensions.pdo", "php82Extensions.pdo_mysql", "php82Extensions.mbstring", "php82Extensions.dom", "php82Extensions.fileinfo", "php82Extensions.zip", "php82Extensions.curl", "php82Extensions.tokenizer", "php82Extensions.xml"]
+nixPkgs = ["php82", "php82Extensions.pdo", "php82Extensions.pdo_mysql", "php82Extensions.mbstring", "php82Extensions.dom", "php82Extensions.fileinfo", "php82Extensions.zip", "php82Extensions.curl", "php82Extensions.tokenizer", "php82Extensions.xml", "apacheHttpd"]
 
 # 2. Install composer dependencies
 [phases.install]
@@ -25,6 +25,6 @@ cmds = [
     "chmod -R 775 /app/storage /app/bootstrap/cache"
 ]
 
-# 5. Start the production server (FrankenPHP)
+# 5. Start the production server (Apache)
 [start]
-cmd = "frankenphp run --config /app/Caddyfile"
+cmd = "heroku-php-apache2 public/"
