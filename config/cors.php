@@ -5,8 +5,9 @@ return [
     
     'allowed_methods' => ['*'],
     
-    'allowed_origins' => array_filter([
+    'allowed_origins' => env('FRONTEND_URL') === '*' ? ['*'] : array_filter([
         'http://localhost:3000',
+        'http://localhost:5173',
         env('FRONTEND_URL'),
     ]),
     
