@@ -8,7 +8,8 @@ return [
     'allowed_origins' => env('FRONTEND_URL') === '*' ? ['*'] : array_filter([
         'http://localhost:3000',
         'http://localhost:5173',
-        'https://ict-frontend-production.up.railway.app',
+        //'https://ict-frontend-production.up.railway.app', // old one 
+        'https://hanyedu.up.railway.app/',  // new one 
         env('FRONTEND_URL'),
     ]),
     
