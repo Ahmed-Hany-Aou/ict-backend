@@ -19,9 +19,39 @@ class Slide extends Model
     ];
 
     protected $casts = [
-        'content' => 'array',
         'meeting_datetime' => 'datetime',
     ];
+
+    /**
+     * Get the content attribute.
+     * Handles both double-encoded JSON (from old data) and regular JSON.
+     */
+    public function getContentAttribute($value)
+    {
+        if (is_null($value)) {
+            return null;
+        }
+
+        // First decode (from database JSON field)
+        $decoded = json_decode($value, true);
+
+        // Check if it's double-encoded (the result is a string, not an array)
+        if (is_string($decoded)) {
+            // Decode again to get the actual array
+            $decoded = json_decode($decoded, true);
+        }
+
+        return $decoded;
+    }
+
+    /**
+     * Set the content attribute.
+     */
+    public function setContentAttribute($value)
+    {
+        // Store as regular JSON (not double-encoded)
+        $this->attributes['content'] = json_encode($value);
+    }
 
     public function chapter()
     {
