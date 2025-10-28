@@ -1,7 +1,7 @@
 # 1. Setup PHP, extensions, and Apache
 [phases.setup]
-nixPkgs = ["php82", "php82Extensions.pdo", "php82Extensions.pdo_mysql", "php82Extensions.mbstring", "php82Extensions.dom", "php82Extensions.fileinfo", "php82Extensions.zip", "php82Extensions.curl", "php82Extensions.tokenizer", "php82Extensions.xml", "apacheHttpd"]
-aptPkgs = ["libapache2-mod-php8.2"]
+nixPkgs = ["php83", "php83Extensions.pdo", "php83Extensions.pdo_mysql", "php83Extensions.mbstring", "php83Extensions.dom", "php83Extensions.fileinfo", "php83Extensions.zip", "php83Extensions.curl", "php83Extensions.tokenizer", "php83Extensions.xml", "php83Extensions.intl", "apacheHttpd"]
+aptPkgs = ["libapache2-mod-php8.3"]
 
 # Configure Apache for logging and modules
 run.preInstall = """
