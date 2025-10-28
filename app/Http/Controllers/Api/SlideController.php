@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Traits\ApiResponse;
 use App\Models\Slide;
 use App\Models\SlideProgress;
 use Illuminate\Http\Request;
@@ -10,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 
 class SlideController extends Controller
 {
+    use ApiResponse;
    public function getChapterSlides($chapterId)
     {
         $slides = Slide::where('chapter_id', $chapterId)
@@ -46,10 +48,9 @@ class SlideController extends Controller
             ];
         });
 
-        return response()->json([
-            'success' => true,
+        return $this->successResponse([
             'slides' => $slidesData
-        ]);
+        ], 'Slides retrieved successfully');
     } 
 
     public function show($id)
@@ -65,10 +66,9 @@ class SlideController extends Controller
             $slide->last_viewed = $progress ? $progress->last_viewed_at : null;
         }
 
-        return response()->json([
-            'success' => true,
+        return $this->successResponse([
             'slide' => $slide
-        ]);
+        ], 'Slide retrieved successfully');
     }
 
     public function markViewed(Request $request, $id)
@@ -87,10 +87,7 @@ class SlideController extends Controller
             ]
         );
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Slide marked as viewed'
-        ]);
+        return $this->successResponse(null, 'Slide marked as viewed');
     }
 
     public function markCompleted(Request $request, $id)
@@ -110,10 +107,7 @@ class SlideController extends Controller
             ]
         );
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Slide marked as completed'
-        ]);
+        return $this->successResponse(null, 'Slide marked as completed');
     }
 
     public function getNext($id)
@@ -126,16 +120,12 @@ class SlideController extends Controller
             ->first();
 
         if (!$nextSlide) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This is the last slide'
-            ], 404);
+            return $this->notFoundResponse('This is the last slide');
         }
 
-        return response()->json([
-            'success' => true,
+        return $this->successResponse([
             'slide' => $nextSlide
-        ]);
+        ], 'Next slide retrieved successfully');
     }
 
     public function getPrevious($id)
@@ -148,15 +138,11 @@ class SlideController extends Controller
             ->first();
 
         if (!$previousSlide) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This is the first slide'
-            ], 404);
+            return $this->notFoundResponse('This is the first slide');
         }
 
-        return response()->json([
-            'success' => true,
+        return $this->successResponse([
             'slide' => $previousSlide
-        ]);
+        ], 'Previous slide retrieved successfully');
     }
 }
