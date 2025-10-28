@@ -2,12 +2,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use App\Models\Quiz;
 use App\Models\QuizResult;
 
 class QuizController extends Controller
 {
+    use ApiResponse;
     /**
      * Get quiz by chapter ID with shuffled questions and options
      */
@@ -18,10 +20,7 @@ class QuizController extends Controller
             ->first();
 
         if (!$quiz) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No quiz found for this chapter'
-            ], 404);
+            return $this->notFoundResponse('No quiz found for this chapter');
         }
 
         // Get questions and shuffle both questions and options
@@ -47,10 +46,9 @@ class QuizController extends Controller
         $quizData = $quiz->toArray();
         $quizData['questions'] = $questions;
 
-        return response()->json([
-            'success' => true,
+        return $this->successResponse([
             'quiz' => $quizData
-        ]);
+        ], 'Quiz retrieved successfully');
     }
 
     /**
@@ -63,10 +61,7 @@ class QuizController extends Controller
             ->first();
 
         if (!$quiz) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Quiz not found'
-            ], 404);
+            return $this->notFoundResponse('Quiz not found');
         }
 
         // Get questions and shuffle both questions and options
@@ -92,10 +87,9 @@ class QuizController extends Controller
         $quizData = $quiz->toArray();
         $quizData['questions'] = $questions;
 
-        return response()->json([
-            'success' => true,
+        return $this->successResponse([
             'quiz' => $quizData
-        ]);
+        ], 'Quiz retrieved successfully');
     }
 
     /**
@@ -110,10 +104,9 @@ class QuizController extends Controller
             ->get()
             ->groupBy('category');
 
-        return response()->json([
-            'success' => true,
+        return $this->successResponse([
             'quizzes' => $quizzes
-        ]);
+        ], 'Quizzes retrieved successfully');
     }
 
     /**
@@ -127,11 +120,10 @@ class QuizController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return response()->json([
-            'success' => true,
+        return $this->successResponse([
             'category' => $category,
             'quizzes' => $quizzes
-        ]);
+        ], 'Quizzes retrieved successfully');
     }
 
     /**
@@ -155,18 +147,12 @@ class QuizController extends Controller
             $questions = $request->questions;
 
             if (empty($questions)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Quiz has no questions'
-                ], 400);
+                return $this->errorResponse('Quiz has no questions', 400);
             }
 
             // Validate that the number of questions matches the original quiz
             if (count($questions) !== count($quiz->questions)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid quiz data: question count mismatch'
-                ], 400);
+                return $this->errorResponse('Invalid quiz data: question count mismatch', 400);
             }
 
             // Calculate attempt number
@@ -217,9 +203,7 @@ class QuizController extends Controller
                 'time_taken' => $request->time_taken ?? null
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => $passed ? 'Congratulations! You passed!' : 'Keep studying and try again!',
+            return $this->successResponse([
                 'result' => [
                     'id' => $quizResult->id,
                     'attempt_number' => $attemptNumber,
@@ -230,20 +214,12 @@ class QuizController extends Controller
                     'passing_score' => $quiz->passing_score,
                     'time_taken' => $request->time_taken
                 ]
-            ]);
+            ], $passed ? 'Congratulations! You passed!' : 'Keep studying and try again!');
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $e->errors()
-            ], 422);
+            return $this->validationErrorResponse($e->errors(), 'Validation failed');
         } catch (\Exception $e) {
             \Log::error('Quiz submission error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to submit quiz. Please try again.',
-                'error' => $e->getMessage()
-            ], 500);
+            return $this->serverErrorResponse('Failed to submit quiz. Please try again.', $e);
         }
     }
 
@@ -257,10 +233,9 @@ class QuizController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return response()->json([
-            'success' => true,
+        return $this->successResponse([
             'results' => $results
-        ]);
+        ], 'Quiz results retrieved successfully');
     }
 
     /**
@@ -274,11 +249,10 @@ class QuizController extends Controller
             ->orderBy('attempt_number', 'asc')
             ->get();
 
-        return response()->json([
-            'success' => true,
+        return $this->successResponse([
             'total_attempts' => $attempts->count(),
             'attempts' => $attempts
-        ]);
+        ], 'Quiz attempts retrieved successfully');
     }
 
     /**
@@ -339,10 +313,9 @@ class QuizController extends Controller
             $result->questions_data = $enhanced;
         }
 
-        return response()->json([
-            'success' => true,
+        return $this->successResponse([
             'result' => $result
-        ]);
+        ], 'Quiz result retrieved successfully');
     }
 
     /**
@@ -356,10 +329,7 @@ class QuizController extends Controller
                 ->findOrFail($resultId);
 
             if (!$result->quiz) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Quiz data not found'
-                ], 404);
+                return $this->notFoundResponse('Quiz data not found');
             }
 
             // Build detailed results if not stored
@@ -408,8 +378,7 @@ class QuizController extends Controller
                 }
             }
 
-            return response()->json([
-                'success' => true,
+            return $this->successResponse([
                 'result' => [
                     'id' => $result->id,
                     'quiz_title' => $result->quiz->title,
@@ -424,14 +393,10 @@ class QuizController extends Controller
                     'created_at' => $result->created_at,
                     'questions' => $detailedResults
                 ]
-            ]);
+            ], 'Detailed quiz result retrieved successfully');
         } catch (\Exception $e) {
             \Log::error('Get detailed result error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to get detailed result',
-                'error' => $e->getMessage()
-            ], 500);
+            return $this->serverErrorResponse('Failed to get detailed result', $e);
         }
     }
 }

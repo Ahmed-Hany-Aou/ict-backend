@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -10,6 +11,7 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    use ApiResponse;
     /**
      * Register a new user
      */
@@ -19,17 +21,12 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'fullName' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6|confirmed',
-            'confirmPassword' => 'required|string|min:6',
-            
+            'password' => 'required|string|min:6',
+            'confirmPassword' => 'required|string|min:6|same:password',
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
+            return $this->validationErrorResponse($validator->errors()->toArray());
         }
 
         try {
@@ -43,21 +40,16 @@ class AuthController extends Controller
             // Create token for the user
             $token = $user->createToken('auth_token')->plainTextToken;
 
-            return response()->json([
-                'success' => true,
-                'message' => 'User registered successfully',
+            return $this->createdResponse([
                 'token' => $token,
                 'user' => [
                     'id' => $user->id,
                     'email' => $user->email,
                     'fullName' => $user->name,
                 ]
-            ], 201);
+            ], 'User registered successfully');
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Registration failed: ' . $e->getMessage()
-            ], 500);
+            return $this->serverErrorResponse('Registration failed', $e);
         }
     }
 
@@ -73,11 +65,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
+            return $this->validationErrorResponse($validator->errors()->toArray());
         }
 
         try {
@@ -86,30 +74,22 @@ class AuthController extends Controller
 
             // Check if user exists and password is correct
             if (!$user || !Hash::check($request->password, $user->password)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid credentials'
-                ], 401);
+                return $this->unauthorizedResponse('Invalid credentials');
             }
 
             // Create token
             $token = $user->createToken('auth_token')->plainTextToken;
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Login successful',
+            return $this->successResponse([
                 'token' => $token,
                 'user' => [
                     'id' => $user->id,
                     'email' => $user->email,
                     'fullName' => $user->name,
                 ]
-            ], 200);
+            ], 'Login successful');
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Login failed: ' . $e->getMessage()
-            ], 500);
+            return $this->serverErrorResponse('Login failed', $e);
         }
     }
 
@@ -120,14 +100,13 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        return response()->json([
-            'success' => true,
+        return $this->successResponse([
             'user' => [
                 'id' => $user->id,
                 'email' => $user->email,
                 'fullName' => $user->name,
             ]
-        ], 200);
+        ], 'User retrieved successfully');
     }
 
     /**
@@ -138,10 +117,7 @@ class AuthController extends Controller
         // Revoke all tokens
         $request->user()->tokens()->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Logout successful'
-        ], 200);
+        return $this->successResponse(null, 'Logout successful');
     }
 
     /**
@@ -155,11 +131,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Email not found',
-                'errors' => $validator->errors()
-            ], 422);
+            return $this->validationErrorResponse($validator->errors()->toArray(), 'Email not found');
         }
 
         try {
@@ -169,15 +141,9 @@ class AuthController extends Controller
             // For now, just return success message
             // TODO: Implement sending reset email
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Password reset link sent to email'
-            ], 200);
+            return $this->successResponse(null, 'Password reset link sent to email');
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
-            ], 500);
+            return $this->serverErrorResponse('Failed to process password reset', $e);
         }
     }
 }

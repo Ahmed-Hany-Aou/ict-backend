@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Traits\ApiResponse;
 use App\Models\Chapter;
 use App\Models\UserProgress;
 use App\Models\SlideProgress;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 class ChapterController extends Controller
 {
+    use ApiResponse;
     /**
      * Get all chapters with user progress
      */
@@ -74,10 +76,9 @@ class ChapterController extends Controller
                 ];
             });
 
-        return response()->json([
-            'success' => true,
+        return $this->successResponse([
             'chapters' => $chapters
-        ]);
+        ], 'Chapters retrieved successfully');
     }
 
     /**
@@ -118,10 +119,9 @@ class ChapterController extends Controller
             $chapterData['is_upcoming'] = now() < $chapter->meeting_datetime;
         }
 
-        return response()->json([
-            'success' => true,
+        return $this->successResponse([
             'chapter' => $chapterData
-        ]);
+        ], 'Chapter retrieved successfully');
     }
 
     /**
@@ -149,10 +149,7 @@ class ChapterController extends Controller
             ]
         );
         
-        return response()->json([
-            'success' => true,
-            'message' => 'Chapter marked as completed'
-        ]);
+        return $this->successResponse(null, 'Chapter marked as completed');
     }
 
 
@@ -202,8 +199,7 @@ class ChapterController extends Controller
         $quizProgress = $totalQuizzes > 0 ? ($passedQuizzes / $totalQuizzes) * 40 : 0;
         $overallProgress = round($slideProgress + $quizProgress);
 
-        return response()->json([
-            'success' => true,
+        return $this->successResponse([
             'statistics' => [
                 'total_chapters' => $totalChapters,
                 'completed_chapters' => $completedChapters,
@@ -215,7 +211,7 @@ class ChapterController extends Controller
                 'quiz_progress' => round($quizProgress),
                 'overall_progress' => $overallProgress
             ]
-        ]);
+        ], 'User progress retrieved successfully');
     }
 
     /**
@@ -238,9 +234,6 @@ class ChapterController extends Controller
             ]
         );
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Chapter started'
-        ]);
+        return $this->successResponse(null, 'Chapter started');
     }
 }

@@ -9,7 +9,7 @@ return [
         'http://localhost:3000',
         'http://localhost:5173',
         //'https://ict-frontend-production.up.railway.app', // old one 
-        'https://hanyedu.up.railway.app/',  // new link
+        'https://hanyedu.up.railway.app',  // new link
         env('FRONTEND_URL'),
     ]),
     
