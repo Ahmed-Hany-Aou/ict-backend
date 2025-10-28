@@ -38,11 +38,10 @@ class SlideController extends Controller
                 'slide_number' => $slide->slide_number,
                 'type' => $slide->type,
 
-                // --- THIS IS THE CRITICAL FIX ---
-                // Decode the JSON string from the database into a PHP array/object
-                'content' => json_decode($slide->content),
+                // Content is already cast to array by Eloquent model
+                'content' => $slide->content,
 
-                'video_url' => $slide->video_url, // Include video_url if it might exist on slides in the future
+                'video_url' => $slide->video_url,
 
                 'is_completed' => $isCompleted,
             ];
