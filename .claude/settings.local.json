@@ -23,7 +23,8 @@
       "Bash(php test_quiz_shuffling.php:*)",
       "Bash(npm install:*)",
       "Bash(php test_auth_endpoint.php:*)",
-      "Read(//c/Users/ahmed.hany/Desktop/document_my_work/ICT_docs/for-claude/**)"
+      "Read(//c/Users/ahmed.hany/Desktop/document_my_work/ICT_docs/for-claude/**)",
+      "Bash(php:*)"
     ],
     "deny": [],
     "ask": []
