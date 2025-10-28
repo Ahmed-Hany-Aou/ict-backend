@@ -1,18 +1,6 @@
-# 1. Setup PHP, extensions, and Apache
+# 1. Setup PHP extensions
 [phases.setup]
-nixPkgs = ["php83", "php83Extensions.pdo", "php83Extensions.pdo_mysql", "php83Extensions.mbstring", "php83Extensions.dom", "php83Extensions.fileinfo", "php83Extensions.zip", "php83Extensions.curl", "php83Extensions.tokenizer", "php83Extensions.xml", "php83Extensions.intl", "apacheHttpd"]
-aptPkgs = ["libapache2-mod-php8.3"]
-
-# Configure Apache for logging and modules
-run.preInstall = """
-  echo "LoadModule rewrite_module modules/mod_rewrite.so" >> /etc/apache2/httpd.conf
-  echo "LoadModule headers_module modules/mod_headers.so" >> /etc/apache2/httpd.conf
-  echo "ServerName railway" >> /etc/apache2/httpd.conf
-  echo "Listen 8080" >> /etc/apache2/httpd.conf
-  # Send Apache errors to stdout/stderr so they appear in Railway logs
-  echo "ErrorLog /dev/stderr" >> /etc/apache2/httpd.conf
-  echo "CustomLog /dev/stdout combined" >> /etc/apache2/httpd.conf
-"""
+nixPkgs = ["php83", "php83Extensions.pdo", "php83Extensions.pdo_mysql", "php83Extensions.mbstring", "php83Extensions.dom", "php83Extensions.fileinfo", "php83Extensions.zip", "php83Extensions.curl", "php83Extensions.tokenizer", "php83Extensions.xml", "php83Extensions.intl"]
 
 # 2. Install composer dependencies
 [phases.install]
@@ -28,15 +16,13 @@ cmds = [
     "php artisan storage:link"
 ]
 
-# 4. Deploy (run migrations, seeders, and fix permissions)
+# 4. Deploy (run migrations and seeders)
 [phases.deploy]
 cmds = [
     "php artisan migrate --force",
-    "php artisan db:seed --force",
-    "chown -R www-data:www-data /app/storage /app/bootstrap/cache",
-    "chmod -R 775 /app/storage /app/bootstrap/cache"
+    "php artisan db:seed --force"
 ]
 
-# 5. Start the production server (Apache)
+# 5. Start the production server
 [start]
-cmd = "heroku-php-apache2 public/"
+cmd = "php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"
