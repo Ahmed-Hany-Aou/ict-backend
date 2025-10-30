@@ -19,10 +19,8 @@ cmds = [
 # 4. Deploy (run migrations and seeders)
 [phases.deploy]
 cmds = [
- #   "php artisan migrate --force",
+    # "php artisan migrate --force",
     # "php artisan db:seed --force"
 ]
 
-# 5. Start the production server
-[start]
-cmd = "php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"
+# (The [start] section is GONE)
