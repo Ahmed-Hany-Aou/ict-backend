@@ -19,8 +19,8 @@ cmds = [
 # 4. Deploy (run migrations and seeders)
 [phases.deploy]
 cmds = [
-    "php artisan migrate --force",
-    "php artisan db:seed --force"
+ #   "php artisan migrate --force",
+    # "php artisan db:seed --force"
 ]
 
 # 5. Start the production server
