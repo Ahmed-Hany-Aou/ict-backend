@@ -1,18 +1,24 @@
 #!/bin/bash
 set -e  # Exit immediately if any command fails
 
+# --- THIS IS THE FIX ---
+# Wait 5 seconds for Railway to inject all new env variables
+echo "Waiting for environment variables..."
+sleep 5
+# Clear any old cached config that had the wrong password
+php artisan config:clear
+# --- END OF FIX ---
+
 echo "Starting application..."
 
 # Dynamically set the port NGINX listens on
 sed -i "s/listen 80;/listen ${PORT};/" /etc/nginx/sites-available/default
 echo "NGINX configured to listen on port ${PORT}"
 
-# --- THIS IS THE NEW FIX ---
 # Publish assets for Filament and Livewire
 echo "Publishing assets..."
 php artisan vendor:publish --tag=filament-assets --force
 php artisan livewire:publish --assets
-# --- END OF FIX ---
 
 # Cache for production
 echo "Caching configuration..."
