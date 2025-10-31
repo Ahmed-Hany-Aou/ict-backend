@@ -1,10 +1,10 @@
 # Build stage
 FROM composer:2.6 as build
 
-# Install dependencies for ext-intl, then install the extension
-RUN apt-get update && apt-get install -y libicu-dev \
+# Install dependencies for ext-intl (using Alpine's 'apk' manager)
+RUN apk add --no-cache icu-dev \
     && docker-php-ext-install intl \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/cache/apk/*
 
 WORKDIR /app
 COPY . .
@@ -17,7 +17,7 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install system dependencies (NGINX and PHP)
-# I have added php8.2-intl to this list
+# This part is correct (uses apt-get)
 RUN apt-get update && apt-get install -y \
     nginx \
     php8.2-fpm \
