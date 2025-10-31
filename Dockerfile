@@ -16,18 +16,21 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies (NGINX and PHP)
-# This part is correct (uses apt-get)
-RUN apt-get update && apt-get install -y \
-    nginx \
-    php8.2-fpm \
-    php8.2-mysql \
-    php8.2-mbstring \
-    php8.2-xml \
-    php8.2-curl \
-    php8.2-zip \
-    php8.2-gd \
-    php8.2-intl \
+# Install dependencies and the ondrej/php PPA
+RUN apt-get update && apt-get install -y software-properties-common \
+    && add-apt-repository ppa:ondrej/php -y \
+    && apt-get update \
+    # Now install NGINX and PHP
+    && apt-get install -y \
+        nginx \
+        php8.2-fpm \
+        php8.2-mysql \
+        php8.2-mbstring \
+        php8.2-xml \
+        php8.2-curl \
+        php8.2-zip \
+        php8.2-gd \
+        php8.2-intl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
