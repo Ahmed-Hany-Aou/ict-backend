@@ -1,14 +1,6 @@
 #!/bin/bash
 set -e  # Exit immediately if any command fails
 
-# --- THIS IS THE FIX ---
-# Wait 5 seconds for Railway to inject all new env variables
-echo "Waiting for environment variables..."
-sleep 5
-# Clear any old cached config that had the wrong password
-php artisan config:clear
-# --- END OF FIX ---
-
 echo "Starting application..."
 
 # Dynamically set the port NGINX listens on
@@ -20,11 +12,14 @@ echo "Publishing assets..."
 php artisan vendor:publish --tag=filament-assets --force
 php artisan livewire:publish --assets
 
-# Cache for production
-echo "Caching configuration..."
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
+# --- THIS IS THE FIX ---
+# CLEAR all caches. DO NOT create new ones.
+# This forces Laravel to read variables from the live environment.
+echo "Clearing all caches..."
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+# --- END OF FIX ---
 
 # Run migrations safely
 if [[ "${RAILWAY_ENVIRONMENT}" == "production" ]]; then
