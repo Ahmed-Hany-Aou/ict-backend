@@ -1,6 +1,11 @@
 # Build stage
 FROM composer:2.6 as build
 
+# Install dependencies for ext-intl, then install the extension
+RUN apt-get update && apt-get install -y libicu-dev \
+    && docker-php-ext-install intl \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY . .
 # --prefer-dist is faster, --no-dev saves space
@@ -12,6 +17,7 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install system dependencies (NGINX and PHP)
+# I have added php8.2-intl to this list
 RUN apt-get update && apt-get install -y \
     nginx \
     php8.2-fpm \
@@ -21,6 +27,7 @@ RUN apt-get update && apt-get install -y \
     php8.2-curl \
     php8.2-zip \
     php8.2-gd \
+    php8.2-intl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
