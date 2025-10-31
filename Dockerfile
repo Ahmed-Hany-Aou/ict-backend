@@ -49,7 +49,8 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 # Copy the startup script
 COPY start.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh
-RUN mkdir -p /run/php
+RUN mkdir -p /run/php \
+    && chown -R www-data:www-data /run/php
 
 EXPOSE 80
 
