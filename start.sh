@@ -3,13 +3,19 @@ set -e  # Exit immediately if any command fails
 
 echo "Starting application..."
 
-# --- THIS IS THE NEW FIX ---
-# Dynamically set the port NGINX listens on from Railway's $PORT variable
+# Dynamically set the port NGINX listens on
 sed -i "s/listen 80;/listen ${PORT};/" /etc/nginx/sites-available/default
 echo "NGINX configured to listen on port ${PORT}"
+
+# --- THIS IS THE NEW FIX ---
+# Publish assets for Filament and Livewire
+echo "Publishing assets..."
+php artisan vendor:publish --tag=filament-assets --force
+php artisan livewire:publish --assets
 # --- END OF FIX ---
 
 # Cache for production
+echo "Caching configuration..."
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
