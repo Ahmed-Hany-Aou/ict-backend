@@ -13,6 +13,7 @@ cmds = [
 cmds = [
     "php artisan optimize:clear",
     "php artisan vendor:publish --tag=filament-assets --force",
+    "php artisan livewire:publish --assets",
     "php artisan optimize",
     "php artisan storage:link"
 ]
@@ -21,6 +22,5 @@ cmds = [
 [phases.deploy]
 cmds = []
 
-# 5. Start the REAL production server
-[start]
-cmd = "php-fpm & nginx -g 'daemon off;'"
+# THE [start] SECTION IS GONE.
+# This forces Railway to use its default production server.
