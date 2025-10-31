@@ -22,6 +22,6 @@ php artisan storage:link
 
 echo "Application setup complete. Starting services..."
 
-# Start services
-php-fpm8.2 -D
+# Start services (using php-fpm8.3)
+php-fpm8.3 -D
 nginx -g 'daemon off;'

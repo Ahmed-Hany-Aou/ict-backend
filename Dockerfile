@@ -20,23 +20,24 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y software-properties-common \
     && add-apt-repository ppa:ondrej/php -y \
     && apt-get update \
-    # Now install NGINX and PHP
+    # Now install NGINX and PHP 8.3
     && apt-get install -y \
         nginx \
-        php8.2-fpm \
-        php8.2-mysql \
-        php8.2-mbstring \
-        php8.2-xml \
-        php8.2-curl \
-        php8.2-zip \
-        php8.2-gd \
-        php8.2-intl \
+        php8.3-fpm \
+        php8.3-mysql \
+        php8.3-mbstring \
+        php8.3-xml \
+        php8.3-curl \
+        php8.3-zip \
+        php8.3-gd \
+        php8.3-intl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Configure nginx & PHP-FPM
 COPY nginx.conf /etc/nginx/sites-available/default
-RUN sed -i 's/;clear_env = no/clear_env = no/' /etc/php/8.2/fpm/pool.d/www.conf
+# Update path for PHP 8.3
+RUN sed -i 's/;clear_env = no/clear_env = no/' /etc/php/8.3/fpm/pool.d/www.conf
 
 # Copy application files from the 'build' stage
 COPY --from=build /app /var/www/html
