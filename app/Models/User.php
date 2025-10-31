@@ -4,8 +4,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     use HasApiTokens, HasFactory;
 
@@ -43,4 +45,10 @@ class User extends Authenticatable
     {
         return in_array($this->role, ['admin', 'teacher']);
     }
+    public function canAccessPanel(Panel $panel): bool
+{
+    // This is the rule that grants access.
+    // It checks if the user's email is the one you use to log in.
+    return $this->email === 'admin@ict.com';
+}
 }
