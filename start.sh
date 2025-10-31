@@ -3,16 +3,6 @@ set -e  # Exit immediately if any command fails
 
 echo "Starting application..."
 
-# Wait for database to be ready (optional but recommended)
-# Note: This requires `db:monitor` to be configured. 
-# If it fails, you can comment it out for now.
-echo "Waiting for database connection..."
-while ! php artisan db:monitor > /dev/null 2>&1; do
-    echo "Database not ready, waiting..."
-    sleep 2
-done
-echo "Database is ready."
-
 # Cache for production
 php artisan config:cache
 php artisan route:cache
