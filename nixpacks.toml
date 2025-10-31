@@ -20,3 +20,7 @@ cmds = [
 # 4. Deploy (EMPTY - this skips migrations)
 [phases.deploy]
 cmds = []
+
+# 5. Start the REAL production server
+[start]
+cmd = "php-fpm & nginx -g 'daemon off;'"
