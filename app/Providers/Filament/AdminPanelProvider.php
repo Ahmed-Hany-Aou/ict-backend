@@ -17,6 +17,7 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use App\Models\User;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -53,6 +54,12 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ]);
+            ])
+
+            ->canAccessPanel(function (User $user) {
+            // This rule will ONLY allow the user 'admin@ict.com' to see the panel.
+            // You can change this logic later if you have an 'is_admin' column.
+            return $user->email === 'admin@ict.com';
+        });
     }
 }
