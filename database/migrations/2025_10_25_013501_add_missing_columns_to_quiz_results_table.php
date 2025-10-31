@@ -12,12 +12,30 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('quiz_results', function (Blueprint $table) {
-            $table->foreignId('quiz_id')->after('user_id')->constrained()->onDelete('cascade');
-            $table->json('answers')->after('quiz_id');
-            $table->integer('score')->after('answers');
-            $table->integer('total_questions')->after('score');
-            $table->float('percentage')->after('total_questions');
-            $table->boolean('passed')->after('percentage');
+            
+            if (!Schema::hasColumn('quiz_results', 'quiz_id')) {
+                $table->foreignId('quiz_id')->after('user_id')->constrained()->onDelete('cascade');
+            }
+
+            if (!Schema::hasColumn('quiz_results', 'answers')) {
+                $table->json('answers')->after('quiz_id');
+            }
+
+            if (!Schema::hasColumn('quiz_results', 'score')) {
+                $table->integer('score')->after('answers');
+            }
+
+            if (!Schema::hasColumn('quiz_results', 'total_questions')) {
+                $table->integer('total_questions')->after('score');
+            }
+
+            if (!Schema::hasColumn('quiz_results', 'percentage')) {
+                $table->float('percentage')->after('total_questions');
+            }
+
+            if (!Schema::hasColumn('quiz_results', 'passed')) {
+                $table->boolean('passed')->after('percentage');
+            }
         });
     }
 
@@ -27,8 +45,11 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('quiz_results', function (Blueprint $table) {
-            $table->dropForeign(['quiz_id']);
-            $table->dropColumn(['quiz_id', 'answers', 'score', 'total_questions', 'percentage', 'passed']);
+            // This is also wrapped in checks to be safe
+            if (Schema::hasColumn('quiz_results', 'quiz_id')) {
+                $table->dropForeign(['quiz_id']);
+                $table->dropColumn(['quiz_id', 'answers', 'score', 'total_questions', 'percentage', 'passed']);
+            }
         });
     }
 };
