@@ -49,6 +49,6 @@ class User extends Authenticatable implements FilamentUser
 {
     // This is the rule that grants access.
     // It checks if the user's email is the one you use to log in.
-    return $this->email === 'admin@ict.com';
+    return $this->role === 'admin';
 }
 }
