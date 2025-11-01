@@ -41,8 +41,8 @@ class ImportChapter extends Page implements HasForms
     {
         return $form
             ->schema([
-                Section::make('Import Chapter Data')
-                    ->description('Paste the JSON data for the chapter and its content. The import will create the chapter, all slides, and quiz in a single transaction.')
+                Section::make('Import Chapter with Slides')
+                    ->description('Import a chapter with slides, and optionally a quiz. To import only a quiz for an existing chapter, use "Import Quiz" instead.')
                     ->schema([
                         Textarea::make('chapter_data')
                             ->label('Chapter & Slides JSON')
@@ -53,11 +53,10 @@ class ImportChapter extends Page implements HasForms
                             ->columnSpanFull(),
 
                         Textarea::make('quiz_data')
-                            ->label('Quiz JSON')
+                            ->label('Quiz JSON (Optional)')
                             ->placeholder($this->getQuizJsonExample())
-                            ->required()
                             ->rows(12)
-                            ->helperText('Paste the JSON containing quiz information and questions')
+                            ->helperText('Optional: Paste the JSON containing quiz information and questions. Leave empty to import chapter without quiz. You can add quiz later using "Import Quiz".')
                             ->columnSpanFull(),
                     ])
                     ->columns(1),
@@ -72,20 +71,34 @@ class ImportChapter extends Page implements HasForms
         try {
             // Decode JSON inputs
             $chapterData = json_decode($data['chapter_data'], true);
-            $quizData = json_decode($data['quiz_data'], true);
 
-            // Validate JSON decoding
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new \Exception('Invalid JSON format: ' . json_last_error_msg());
+            // Quiz data is optional
+            $quizData = null;
+            if (!empty($data['quiz_data'])) {
+                $quizData = json_decode($data['quiz_data'], true);
+
+                // Validate quiz JSON if provided
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new \Exception('Invalid Quiz JSON format: ' . json_last_error_msg());
+                }
             }
 
-            if (!$chapterData || !$quizData) {
-                throw new \Exception('Both Chapter and Quiz data are required and must be valid JSON.');
+            // Validate chapter JSON
+            if (!$chapterData) {
+                throw new \Exception('Chapter data is required and must be valid JSON.');
+            }
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new \Exception('Invalid Chapter JSON format: ' . json_last_error_msg());
             }
 
             // Validate required fields in chapter data
             $this->validateChapterData($chapterData);
-            $this->validateQuizData($quizData);
+
+            // Only validate quiz if provided
+            if ($quizData) {
+                $this->validateQuizData($quizData);
+            }
 
             // Import in a database transaction
             DB::transaction(function () use ($chapterData, $quizData) {
@@ -117,25 +130,36 @@ class ImportChapter extends Page implements HasForms
                     }
                 }
 
-                // Create Quiz
-                Quiz::create([
-                    'chapter_id' => $chapter->id,
-                    'category' => $quizData['category'] ?? 'chapter',
-                    'title' => $quizData['title'],
-                    'description' => $quizData['description'] ?? '',
-                    'questions' => $quizData['questions'],
-                    'passing_score' => $quizData['passing_score'] ?? 70,
-                    'is_active' => $quizData['is_active'] ?? true,
-                ]);
+                // Create Quiz (only if quiz data provided)
+                if ($quizData) {
+                    Quiz::create([
+                        'chapter_id' => $chapter->id,
+                        'category' => $quizData['category'] ?? 'chapter',
+                        'title' => $quizData['title'],
+                        'description' => $quizData['description'] ?? '',
+                        'questions' => $quizData['questions'],
+                        'passing_score' => $quizData['passing_score'] ?? 70,
+                        'is_active' => $quizData['is_active'] ?? true,
+                    ]);
+                }
 
                 $this->importedChapter = $chapter;
             });
 
             // Success notification
+            $slidesCount = $this->importedChapter->slides()->count();
+            $quizCount = $this->importedChapter->quizzes()->count();
+
+            $message = "Chapter \"{$this->importedChapter->title}\" with {$slidesCount} slide(s)";
+            if ($quizCount > 0) {
+                $message .= " and quiz";
+            }
+            $message .= " has been imported successfully.";
+
             Notification::make()
                 ->title('Chapter Imported Successfully!')
                 ->success()
-                ->body("Chapter \"{$this->importedChapter->title}\" with {$this->importedChapter->slides()->count()} slides and quiz has been imported.")
+                ->body($message)
                 ->send();
 
             // Reset form

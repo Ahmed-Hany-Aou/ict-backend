@@ -4,10 +4,10 @@ This document provides the JSON templates needed to import a new chapter using t
 
 ## Overview
 
-The Chapter Importer allows you to create a complete chapter (with all slides and quiz) in one operation by pasting two JSON blocks:
+The Chapter Importer allows you to create a chapter with slides, and optionally a quiz:
 
-1. **Chapter & Slides JSON** - Contains chapter information and all slides
-2. **Quiz JSON** - Contains the quiz for the chapter
+1. **Chapter & Slides JSON** (Required) - Contains chapter information and all slides
+2. **Quiz JSON** (Optional) - Contains the quiz for the chapter - leave empty if you don't want to add a quiz yet
 
 ## Chapter & Slides JSON Template
 
@@ -142,10 +142,23 @@ The Chapter Importer allows you to create a complete chapter (with all slides an
 1. Navigate to the Filament Admin Panel
 2. Click on "Import Chapter" in the Content Management section
 3. Paste your Chapter & Slides JSON into the first textarea
-4. Paste your Quiz JSON into the second textarea
+4. **(Optional)** Paste your Quiz JSON into the second textarea - or leave it empty to import without a quiz
 5. Click "Import Chapter"
 6. If successful, you'll be redirected to the chapters list
 7. If there's an error, a notification will show what went wrong
+
+### Import Options
+
+**Option 1: Chapter with Slides and Quiz**
+- Fill in both textareas
+- Creates complete chapter with quiz in one operation
+
+**Option 2: Chapter with Slides Only (No Quiz)**
+- Fill in only the Chapter & Slides JSON
+- Leave the Quiz JSON textarea empty
+- You can add a quiz later using:
+  - **"Import Quiz"** page (recommended - use JSON)
+  - Filament CRUD interface (manual entry)
 
 ## Tips
 
