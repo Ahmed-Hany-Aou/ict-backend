@@ -54,6 +54,10 @@ class ChapterController extends Controller
                     $status = 'completed';
                 }
                 
+                // Check if content is locked
+                $user = Auth::user();
+                $isLocked = $chapter->is_premium && !$user->isPremiumActive();
+
                 return [
                     'id' => $chapter->id,
                     'title' => $chapter->title,
@@ -61,6 +65,7 @@ class ChapterController extends Controller
                     'chapter_number' => $chapter->chapter_number,
                     'is_published' => $chapter->is_published,
                     'is_premium' => $chapter->is_premium,
+                    'is_locked' => $isLocked,
                     'total_slides' => $totalSlides,
                     'slides_count' => $totalSlides, // Alias for compatibility
                     'completed_slides' => $completedSlides,
@@ -87,6 +92,11 @@ class ChapterController extends Controller
     public function show($id)
     {
         $chapter = Chapter::with('slides')->findOrFail($id);
+
+        // Check if content is locked for premium users
+        if ($chapter->is_premium && Auth::check() && !Auth::user()->isPremiumActive()) {
+            return $this->errorResponse('This chapter is premium content. Please upgrade to access.', 403);
+        }
 
         if (Auth::check()) {
             $userId = Auth::id();
