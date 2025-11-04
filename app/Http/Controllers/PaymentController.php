@@ -89,14 +89,21 @@ class PaymentController extends Controller
             }
         }
 
+        // Get expected price from config
+        $expectedPrice = config('pricing.premium.discounted_price');
+        $strictValidation = config('pricing.strict_validation');
+        $allowedVariance = config('pricing.allowed_variance');
+
         // Use 'sometimes|file' so validation only runs when a file is present and surfaces upload problems
         $validator = Validator::make($request->all(), [
             'payment_reference' => 'required|string|max:255',
-           // 'amount' => 'required|numeric|min:0',
+            'amount' => 'not required|numeric|min:0',
             'screenshot' => 'required|nullable|file|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
         ], [
             'screenshot.image' => 'Screenshot must be an image file',
             'screenshot.max' => 'Screenshot size must not exceed 10MB',
+            'amount.required' => 'Payment amount is required',
+            'amount.numeric' => 'Payment amount must be a number',
         ]);
 
         if ($validator->fails()) {
@@ -112,6 +119,29 @@ class PaymentController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
+
+        // Validate payment amount matches expected price
+      //  if ($strictValidation) {
+          //  $submittedAmount = (float) $request->amount;
+           // $minAmount = $expectedPrice - $allowedVariance;
+           // $maxAmount = $expectedPrice + $allowedVariance;
+
+         //   if ($submittedAmount < $minAmount || $submittedAmount > $maxAmount) {
+          //      \Log::warning('Invalid payment amount submitted', [
+           //         'submitted' => $submittedAmount,
+           //         'expected' => $expectedPrice,
+           //         'user_id' => auth()->id(),
+              //  ]);
+
+               // return response()->json([
+                   // 'success' => false,
+                   // 'message' => "Invalid payment amount. Expected amount is {$expectedPrice} EGP.",
+                  //  'errors' => [
+                   ////     //'amount' => ["The payment amount must be {$expectedPrice} EGP"]
+                  //  ]
+              //  ], 422);
+          //  }
+       // }
 
         try {
             $screenshotPath = null;
