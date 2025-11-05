@@ -23,6 +23,11 @@ class QuizController extends Controller
             return $this->notFoundResponse('No quiz found for this chapter');
         }
 
+        // Check if quiz is premium and user doesn't have access
+        if ($quiz->is_premium && !auth()->user()->isPremiumActive()) {
+            return $this->errorResponse('This quiz is premium content. Please upgrade to access.', 403);
+        }
+
         // Get questions and shuffle both questions and options
         $questions = $quiz->questions;
 
@@ -64,6 +69,11 @@ class QuizController extends Controller
             return $this->notFoundResponse('Quiz not found');
         }
 
+        // Check if quiz is premium and user doesn't have access
+        if ($quiz->is_premium && !auth()->user()->isPremiumActive()) {
+            return $this->errorResponse('This quiz is premium content. Please upgrade to access.', 403);
+        }
+
         // Get questions and shuffle both questions and options
         $questions = $quiz->questions;
 
@@ -97,11 +107,16 @@ class QuizController extends Controller
      */
     public function getAllQuizzes()
     {
+        $user = auth()->user();
         $quizzes = Quiz::with('chapter')
             ->where('is_active', true)
             ->orderBy('category')
             ->orderBy('created_at', 'desc')
             ->get()
+            ->map(function ($quiz) use ($user) {
+                $quiz->is_locked = $quiz->is_premium && !$user->isPremiumActive();
+                return $quiz;
+            })
             ->groupBy('category');
 
         return $this->successResponse([
@@ -114,11 +129,16 @@ class QuizController extends Controller
      */
     public function getQuizzesByCategory($category)
     {
+        $user = auth()->user();
         $quizzes = Quiz::with('chapter')
             ->where('category', $category)
             ->where('is_active', true)
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->map(function ($quiz) use ($user) {
+                $quiz->is_locked = $quiz->is_premium && !$user->isPremiumActive();
+                return $quiz;
+            });
 
         return $this->successResponse([
             'category' => $category,
