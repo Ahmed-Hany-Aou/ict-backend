@@ -84,7 +84,8 @@ class ChapterResource extends Resource
 
                         Forms\Components\DateTimePicker::make('meeting_datetime')
                             ->visible(fn ($get) => $get('video_type') === 'scheduled')
-                            ->label('Meeting Date & Time'),
+                            ->label('Meeting Date & Time')
+                            ->timezone('Africa/Cairo'), // Set to Cairo timezone
 
                         Forms\Components\TextInput::make('meeting_link')
                             ->url()
