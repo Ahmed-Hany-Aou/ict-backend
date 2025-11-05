@@ -9,12 +9,13 @@ class Quiz extends Model
     use HasFactory;
 
     protected $fillable = [
-        'chapter_id', 'category', 'title', 'description', 'questions', 'passing_score', 'is_active'
+        'chapter_id', 'category', 'title', 'description', 'questions', 'passing_score', 'is_active', 'is_premium'
     ];
 
     protected $casts = [
         'questions' => 'array',
-        'is_active' => 'boolean'
+        'is_active' => 'boolean',
+        'is_premium' => 'boolean'
     ];
 
     public function chapter()

@@ -12,15 +12,17 @@ class User extends Authenticatable implements FilamentUser
     use HasApiTokens, HasFactory;
 
     protected $fillable = [
-        'name', 'email', 'password', 'phone', 'grade', 'role', 'is_active', 'is_paid'
+        'name', 'email', 'password', 'phone', 'grade', 'role', 'is_active', 'is_paid', 'is_premium', 'premium_expires_at', 'payment_reference', 'payment_screenshot_path'
     ];
 
     protected $hidden = ['password', 'remember_token'];
 
-        protected $casts = [
+    protected $casts = [
         'email_verified_at' => 'datetime',
         'is_active' => 'boolean',
-        'is_paid' => 'boolean'
+        'is_paid' => 'boolean',
+        'is_premium' => 'boolean',
+        'premium_expires_at' => 'datetime'
     ];
 
 
@@ -46,9 +48,34 @@ class User extends Authenticatable implements FilamentUser
         return in_array($this->role, ['admin', 'teacher']);
     }
     public function canAccessPanel(Panel $panel): bool
-{
-    // This is the rule that grants access.
-    // It checks if the user's email is the one you use to log in.
-    return $this->role === 'admin';
-}
+    {
+        // This is the rule that grants access.
+        // It checks if the user's email is the one you use to log in.
+        return $this->role === 'admin';
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function isPremiumActive()
+    {
+        return $this->is_premium &&
+               ($this->premium_expires_at === null || $this->premium_expires_at->isFuture());
+    }
+
+    public function activatePremium($duration_days = 30)
+    {
+        $this->is_premium = true;
+        $this->premium_expires_at = now()->addDays($duration_days);
+        $this->save();
+    }
+
+    public function deactivatePremium()
+    {
+        $this->is_premium = false;
+        $this->premium_expires_at = null;
+        $this->save();
+    }
 }

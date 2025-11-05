@@ -4,6 +4,8 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\ChapterController;
 use App\Http\Controllers\Api\SlideController;
+use App\Http\Controllers\Api\PricingController;
+use App\Http\Controllers\PaymentController;
 
 
 /*
@@ -17,6 +19,8 @@ Route::middleware('api')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 
+    // Pricing (public route)
+    Route::get('/pricing', [PricingController::class, 'index']);
 
 
 
@@ -53,6 +57,11 @@ Route::middleware('api')->group(function () {
     Route::get('/chapters/{id}', [ChapterController::class, 'show']);
     Route::get('/chapters/{id}/slides', [SlideController::class, 'getChapterSlides']);
 
+    // Premium & Payment routes
+    Route::get('/premium/status', [PaymentController::class, 'getPremiumStatus']);
+    Route::post('/payments/submit', [PaymentController::class, 'submitPayment']);
+    Route::get('/payments/history', [PaymentController::class, 'getPaymentHistory']);
+    Route::get('/payments/pending', [PaymentController::class, 'getPendingPayment']);
 
     });
 });
@@ -61,6 +70,3 @@ Route::middleware('api')->group(function () {
 Route::get('/test', function () {
     return response()->json(['message' => 'Backend connection successful!']);
 });
-
-
-

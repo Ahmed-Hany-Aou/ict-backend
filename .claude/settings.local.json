@@ -24,7 +24,13 @@
       "Bash(npm install:*)",
       "Bash(php test_auth_endpoint.php:*)",
       "Read(//c/Users/ahmed.hany/Desktop/document_my_work/ICT_docs/for-claude/**)",
-      "Bash(php:*)"
+      "Bash(php:*)",
+      "Bash(npm start)",
+      "Bash(echo:*)",
+      "Bash(dir \"C:\\MAMP\\tmp\\php\")",
+      "Bash(cat:*)",
+      "WebFetch(domain:127.0.0.1)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
