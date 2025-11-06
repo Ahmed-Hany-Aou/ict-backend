@@ -31,7 +31,15 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            // Return friendly validation error messages
+            $errors = $validator->errors();
+            $firstError = $errors->first();
+
+            return response()->json([
+                'success' => false,
+                'message' => $firstError,
+                'errors' => $errors
+            ], 422);
         }
 
         $user = User::create([
@@ -42,13 +50,16 @@ class AuthController extends Controller
             'grade' => $request->grade,
         ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
-
+        // Return success message without auto-login, prompting user to login
         return response()->json([
-            'message' => 'Registration successful',
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'user' => $user
+            'success' => true,
+            'message' => 'Registration successful! Please log in to continue.',
+            'redirect_to_login' => true,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email
+            ]
         ], 201);
     }
 
@@ -60,18 +71,51 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            $errors = $validator->errors();
+            $firstError = $errors->first();
+
+            return response()->json([
+                'success' => false,
+                'message' => $firstError,
+                'errors' => $errors
+            ], 422);
         }
 
+        // Check if user exists first
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No account found with this email address. Please check your email or register for a new account.',
+                'error_type' => 'email_not_found'
+            ], 401);
+        }
+
+        // Check if password is correct
+        if (!Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The password you entered is incorrect. Please try again.',
+                'error_type' => 'wrong_password'
+            ], 401);
+        }
+
+        // Attempt login
         if (!Auth::attempt($request->only('email', 'password'))) {
-            return response()->json(['message' => 'Invalid credentials'], 401);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to login. Please try again.',
+                'error_type' => 'login_failed'
+            ], 401);
         }
 
         $user = Auth::user();
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'message' => 'Login successful',
+            'success' => true,
+            'message' => 'Welcome back! Login successful.',
             'access_token' => $token,
             'token_type' => 'Bearer',
             'user' => $user
