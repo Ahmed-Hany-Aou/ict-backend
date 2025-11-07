@@ -10,40 +10,51 @@ use App\Models\SlideProgress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class ChapterController extends Controller
 {
     use ApiResponse;
     /**
      * Get all chapters with user progress
+     * Cached for 5 minutes per user
      */
     public function index()
     {
         $userId = Auth::id();
-        
-        $chapters = Chapter::where('is_published', true)
-            ->orderBy('chapter_number')
-            ->get()
-            ->map(function ($chapter) use ($userId) {
-                // Get total slides count
-                $totalSlides = $chapter->slides()->count();
-                
-                // Count completed slides
+        $user = Auth::user();
+        $cacheKey = "chapters_list_user_{$userId}_premium_{$user->isPremiumActive()}";
+
+        // Cache the result for 5 minutes (300 seconds)
+        $chapters = Cache::remember($cacheKey, 300, function () use ($userId, $user) {
+            // Cache chapter base data separately (rarely changes)
+            $chaptersBase = Cache::remember('chapters_published', 3600, function () {
+                return Chapter::where('is_published', true)
+                    ->orderBy('chapter_number')
+                    ->with(['slides:id,chapter_id']) // Only load IDs for counting
+                    ->get();
+            });
+
+            return $chaptersBase->map(function ($chapter) use ($userId, $user) {
+                // Get total slides count from relationship
+                $totalSlides = $chapter->slides->count();
+
+                // Count completed slides with optimized query
                 $completedSlides = SlideProgress::where('chapter_id', $chapter->id)
                     ->where('user_id', $userId)
                     ->where('completed', true)
                     ->count();
-                
+
                 // Calculate progress percentage
-                $progressPercentage = $totalSlides > 0 
-                    ? round(($completedSlides / $totalSlides) * 100) 
+                $progressPercentage = $totalSlides > 0
+                    ? round(($completedSlides / $totalSlides) * 100)
                     : 0;
-                
+
                 // Check user_progress table for chapter completion status
                 $userProgress = UserProgress::where('user_id', $userId)
                     ->where('chapter_id', $chapter->id)
                     ->first();
-                
+
                 // Determine status
                 $status = 'not_started';
                 if ($userProgress) {
@@ -53,9 +64,8 @@ class ChapterController extends Controller
                 } elseif ($progressPercentage === 100) {
                     $status = 'completed';
                 }
-                
+
                 // Check if content is locked
-                $user = Auth::user();
                 $isLocked = $chapter->is_premium && !$user->isPremiumActive();
 
                 return [
@@ -80,6 +90,7 @@ class ChapterController extends Controller
                     'meeting_link' => $chapter->meeting_link ?? null,
                 ];
             });
+        });
 
         return $this->successResponse([
             'chapters' => $chapters
@@ -88,45 +99,67 @@ class ChapterController extends Controller
 
     /**
      * Get single chapter with slides
+     * Cached for 10 minutes per user
      */
     public function show($id)
     {
-        $chapter = Chapter::with('slides')->findOrFail($id);
+        $userId = Auth::check() ? Auth::id() : null;
+        $cacheKey = $userId ? "chapter_{$id}_user_{$userId}" : "chapter_{$id}_guest";
 
-        // Check if content is locked for premium users
-        if ($chapter->is_premium && Auth::check() && !Auth::user()->isPremiumActive()) {
-            return $this->errorResponse('This chapter is premium content. Please upgrade to access.', 403);
-        }
-
-        if (Auth::check()) {
-            $userId = Auth::id();
-
-            // Mark chapter as started if not already
-            UserProgress::firstOrCreate(
-                [
-                    'user_id' => $userId,
-                    'chapter_id' => $id,
-                ],
-                [
-                    'status' => 'in_progress',
-                    'started_at' => now(),
-                ]
-            );
-
-            // Add progress to each slide
-            $chapter->slides->each(function ($slide) use ($userId) {
-                $progress = SlideProgress::where('user_id', $userId)
-                    ->where('slide_id', $slide->id)
-                    ->first();
-
-                $slide->is_completed = $progress ? $progress->completed : false;
+        // Cache chapter data for 10 minutes
+        $chapterData = Cache::remember($cacheKey, 600, function () use ($id, $userId) {
+            // Cache chapter base data (rarely changes) for 1 hour
+            $chapter = Cache::remember("chapter_{$id}_base", 3600, function () use ($id) {
+                return Chapter::with('slides')->findOrFail($id);
             });
-        }
 
-        // Add is_upcoming for scheduled meetings
-        $chapterData = $chapter->toArray();
-        if ($chapter->video_type === 'scheduled' && $chapter->meeting_datetime) {
-            $chapterData['is_upcoming'] = now() < $chapter->meeting_datetime;
+            // Check if content is locked for premium users
+            if ($chapter->is_premium && Auth::check() && !Auth::user()->isPremiumActive()) {
+                return ['error' => 'This chapter is premium content. Please upgrade to access.', 'status' => 403];
+            }
+
+            if (Auth::check()) {
+                // Mark chapter as started if not already
+                $userProgress = UserProgress::firstOrCreate(
+                    [
+                        'user_id' => $userId,
+                        'chapter_id' => $id,
+                    ],
+                    [
+                        'status' => 'in_progress',
+                        'started_at' => now(),
+                    ]
+                );
+
+                // If created, clear user's chapter list cache
+                if ($userProgress->wasRecentlyCreated) {
+                    $this->clearUserCache($userId);
+                }
+
+                // Get all slide progress for this chapter in one query (optimized)
+                $slideProgressMap = SlideProgress::where('user_id', $userId)
+                    ->where('chapter_id', $id)
+                    ->pluck('completed', 'slide_id')
+                    ->toArray();
+
+                // Add progress to each slide
+                $chapter->slides->each(function ($slide) use ($slideProgressMap) {
+                    $slide->is_completed = $slideProgressMap[$slide->id] ?? false;
+                });
+            }
+
+            // Add is_upcoming for scheduled meetings
+            $data = $chapter->toArray();
+            if ($chapter->video_type === 'scheduled' && $chapter->meeting_datetime) {
+                $data['is_upcoming'] = now() < $chapter->meeting_datetime;
+            }
+
+            return $data;
+        });
+
+        // Handle premium error from cache
+        if (isset($chapterData['error'])) {
+            return $this->errorResponse($chapterData['error'], $chapterData['status']);
         }
 
         return $this->successResponse([
@@ -137,11 +170,11 @@ class ChapterController extends Controller
     /**
      * Mark chapter as completed
      */
-  public function markComplete($id)
+    public function markComplete($id)
     {
         $userId = Auth::id();
         $chapter = Chapter::findOrFail($id);
-        
+
         // Replace all the old logic with this one block
         UserProgress::query()->updateOrInsert(
             [
@@ -155,72 +188,87 @@ class ChapterController extends Controller
                 'completed_at' => now(),
                 // Your original logic will work here because updateOrInsert
                 // does not use Eloquent model casting.
-                'started_at' => DB::raw('COALESCE(started_at, NOW())'), 
+                'started_at' => DB::raw('COALESCE(started_at, NOW())'),
             ]
         );
-        
+
+        // Clear cache after marking complete
+        $this->clearUserCache($userId);
+        Cache::forget("chapter_{$id}_user_{$userId}");
+
         return $this->successResponse(null, 'Chapter marked as completed');
     }
 
 
     /**
      * Get user's overall progress
+     * Cached for 2 minutes per user
      */
     public function getUserProgress()
     {
         $userId = Auth::id();
+        $cacheKey = "user_progress_{$userId}";
 
-        // Count total published chapters
-        $totalChapters = Chapter::where('is_published', true)->count();
-        
-        // Count completed chapters from user_progress table
-        $completedChapters = UserProgress::where('user_id', $userId)
-            ->where('status', 'completed')
-            ->count();
+        // Cache user progress for 2 minutes
+        $statistics = Cache::remember($cacheKey, 120, function () use ($userId) {
+            // Cache platform statistics (rarely changes) for 10 minutes
+            $platformStats = Cache::remember('platform_stats', 600, function () {
+                return [
+                    'total_chapters' => Chapter::where('is_published', true)->count(),
+                    'total_slides' => DB::table('slides')
+                        ->join('chapters', 'slides.chapter_id', '=', 'chapters.id')
+                        ->where('chapters.is_published', true)
+                        ->count(),
+                    'total_quizzes' => DB::table('quizzes')
+                        ->where('is_active', true)
+                        ->count(),
+                ];
+            });
 
-        // Count total slides in published chapters
-        $totalSlides = DB::table('slides')
-            ->join('chapters', 'slides.chapter_id', '=', 'chapters.id')
-            ->where('chapters.is_published', true)
-            ->count();
+            // Count completed chapters from user_progress table
+            $completedChapters = UserProgress::where('user_id', $userId)
+                ->where('status', 'completed')
+                ->count();
 
-        // Count completed slides
-        $completedSlides = SlideProgress::where('user_id', $userId)
-            ->where('completed', true)
-            ->count();
+            // Count completed slides
+            $completedSlides = SlideProgress::where('user_id', $userId)
+                ->where('completed', true)
+                ->count();
 
-        // Count total active quizzes
-        $totalQuizzes = DB::table('quizzes')
-            ->where('is_active', true)
-            ->count();
+            // Count passed quizzes (best attempt only)
+            $passedQuizzes = DB::table('quiz_results')
+                ->select('quiz_id')
+                ->where('user_id', $userId)
+                ->where('passed', true)
+                ->groupBy('quiz_id')
+                ->get()
+                ->count();
 
-        // Count passed quizzes (best attempt only)
-        $passedQuizzes = DB::table('quiz_results')
-            ->select('quiz_id')
-            ->where('user_id', $userId)
-            ->where('passed', true)
-            ->groupBy('quiz_id')
-            ->get()
-            ->count();
+            // Calculate weighted progress
+            // Slides: 60%, Quizzes: 40%
+            $slideProgress = $platformStats['total_slides'] > 0
+                ? ($completedSlides / $platformStats['total_slides']) * 60
+                : 0;
+            $quizProgress = $platformStats['total_quizzes'] > 0
+                ? ($passedQuizzes / $platformStats['total_quizzes']) * 40
+                : 0;
+            $overallProgress = round($slideProgress + $quizProgress);
 
-        // Calculate weighted progress
-        // Slides: 60%, Quizzes: 40%
-        $slideProgress = $totalSlides > 0 ? ($completedSlides / $totalSlides) * 60 : 0;
-        $quizProgress = $totalQuizzes > 0 ? ($passedQuizzes / $totalQuizzes) * 40 : 0;
-        $overallProgress = round($slideProgress + $quizProgress);
-
-        return $this->successResponse([
-            'statistics' => [
-                'total_chapters' => $totalChapters,
+            return [
+                'total_chapters' => $platformStats['total_chapters'],
                 'completed_chapters' => $completedChapters,
-                'total_slides' => $totalSlides,
+                'total_slides' => $platformStats['total_slides'],
                 'completed_slides' => $completedSlides,
-                'total_quizzes' => $totalQuizzes,
+                'total_quizzes' => $platformStats['total_quizzes'],
                 'passed_quizzes' => $passedQuizzes,
                 'slide_progress' => round($slideProgress),
                 'quiz_progress' => round($quizProgress),
                 'overall_progress' => $overallProgress
-            ]
+            ];
+        });
+
+        return $this->successResponse([
+            'statistics' => $statistics
         ], 'User progress retrieved successfully');
     }
 
@@ -231,9 +279,9 @@ class ChapterController extends Controller
     {
         $userId = Auth::id();
         $chapter = Chapter::findOrFail($id);
-        
+
         // Mark chapter as started if not already started
-        UserProgress::firstOrCreate(
+        $userProgress = UserProgress::firstOrCreate(
             [
                 'user_id' => $userId,
                 'chapter_id' => $chapter->id,
@@ -244,6 +292,31 @@ class ChapterController extends Controller
             ]
         );
 
+        // Clear cache if newly created
+        if ($userProgress->wasRecentlyCreated) {
+            $this->clearUserCache($userId);
+        }
+
         return $this->successResponse(null, 'Chapter started');
+    }
+
+    /**
+     * Clear user-specific caches
+     * Call this whenever user progress changes
+     */
+    private function clearUserCache($userId)
+    {
+        $user = Auth::user();
+        $premiumStatus = $user ? $user->isPremiumActive() : false;
+
+        // Clear all user-specific caches
+        Cache::forget("chapters_list_user_{$userId}_premium_{$premiumStatus}");
+        Cache::forget("user_progress_{$userId}");
+
+        // Clear all chapter-specific caches for this user
+        $chapterIds = Chapter::pluck('id');
+        foreach ($chapterIds as $chapterId) {
+            Cache::forget("chapter_{$chapterId}_user_{$userId}");
+        }
     }
 }

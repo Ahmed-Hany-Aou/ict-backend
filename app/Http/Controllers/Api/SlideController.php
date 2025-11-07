@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Traits\ApiResponse;
 use App\Models\Slide;
 use App\Models\SlideProgress;
+use App\Models\Chapter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class SlideController extends Controller
 {
@@ -75,38 +77,116 @@ class SlideController extends Controller
         $slide = Slide::findOrFail($id);
         $userId = Auth::id();
 
-        $progress = SlideProgress::updateOrCreate(
-            [
+        $progress = SlideProgress::where('user_id', $userId)
+            ->where('slide_id', $id)
+            ->first();
+
+        if ($progress) {
+            // Existing progress - increment view count and update last viewed
+            $progress->update([
+                'last_viewed_at' => now(),
+                'view_count' => $progress->view_count + 1,
+            ]);
+        } else {
+            // New progress - set started_at and initialize view_count
+            $progress = SlideProgress::create([
                 'user_id' => $userId,
                 'slide_id' => $id,
-            ],
-            [
                 'chapter_id' => $slide->chapter_id,
                 'last_viewed_at' => now(),
-            ]
-        );
+                'started_at' => now(),
+                'view_count' => 1,
+                'time_spent' => 0,
+            ]);
+        }
 
         return $this->successResponse(null, 'Slide marked as viewed');
     }
 
     public function markCompleted(Request $request, $id)
     {
+        $request->validate([
+            'time_spent' => 'nullable|integer|min:0'
+        ]);
+
         $slide = Slide::findOrFail($id);
         $userId = Auth::id();
+
+        $progress = SlideProgress::where('user_id', $userId)
+            ->where('slide_id', $id)
+            ->first();
+
+        $updateData = [
+            'chapter_id' => $slide->chapter_id,
+            'completed' => true,
+            'last_viewed_at' => now(),
+        ];
+
+        // Add time spent if provided
+        if ($request->has('time_spent')) {
+            if ($progress) {
+                // Add to existing time
+                $updateData['time_spent'] = $progress->time_spent + $request->time_spent;
+            } else {
+                $updateData['time_spent'] = $request->time_spent;
+                $updateData['started_at'] = now();
+                $updateData['view_count'] = 1;
+            }
+        }
 
         $progress = SlideProgress::updateOrCreate(
             [
                 'user_id' => $userId,
                 'slide_id' => $id,
             ],
-            [
-                'chapter_id' => $slide->chapter_id,
-                'completed' => true,
-                'last_viewed_at' => now(),
-            ]
+            $updateData
         );
 
+        // Clear user cache when slide is completed
+        $this->clearSlideCache($userId, $slide->chapter_id);
+
         return $this->successResponse(null, 'Slide marked as completed');
+    }
+
+    /**
+     * Update time spent on a slide
+     * This can be called periodically from the frontend to track actual time
+     */
+    public function updateTimeSpent(Request $request, $id)
+    {
+        $request->validate([
+            'time_spent' => 'required|integer|min:0'
+        ]);
+
+        $slide = Slide::findOrFail($id);
+        $userId = Auth::id();
+
+        $progress = SlideProgress::where('user_id', $userId)
+            ->where('slide_id', $id)
+            ->first();
+
+        if ($progress) {
+            // Add to existing time
+            $progress->update([
+                'time_spent' => $progress->time_spent + $request->time_spent,
+                'last_viewed_at' => now(),
+            ]);
+        } else {
+            // Create new progress with time
+            $progress = SlideProgress::create([
+                'user_id' => $userId,
+                'slide_id' => $id,
+                'chapter_id' => $slide->chapter_id,
+                'last_viewed_at' => now(),
+                'started_at' => now(),
+                'view_count' => 1,
+                'time_spent' => $request->time_spent,
+            ]);
+        }
+
+        return $this->successResponse([
+            'total_time_spent' => $progress->time_spent
+        ], 'Time updated successfully');
     }
 
     public function getNext($id)
@@ -143,5 +223,19 @@ class SlideController extends Controller
         return $this->successResponse([
             'slide' => $previousSlide
         ], 'Previous slide retrieved successfully');
+    }
+
+    /**
+     * Clear slide-related caches when progress changes
+     */
+    private function clearSlideCache($userId, $chapterId)
+    {
+        $user = Auth::user();
+        $premiumStatus = $user ? $user->isPremiumActive() : false;
+
+        // Clear user progress and chapter list caches
+        Cache::forget("chapters_list_user_{$userId}_premium_{$premiumStatus}");
+        Cache::forget("user_progress_{$userId}");
+        Cache::forget("chapter_{$chapterId}_user_{$userId}");
     }
 }

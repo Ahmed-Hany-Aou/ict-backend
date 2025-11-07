@@ -17,11 +17,17 @@ class SlideProgress extends Model
         'chapter_id',
         'completed',
         'last_viewed_at',
+        'started_at',
+        'time_spent',
+        'view_count',
     ];
 
     protected $casts = [
         'completed' => 'boolean',
         'last_viewed_at' => 'datetime',
+        'started_at' => 'datetime',
+        'time_spent' => 'integer',
+        'view_count' => 'integer',
     ];
 
     public function user()

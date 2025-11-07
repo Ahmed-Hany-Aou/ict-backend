@@ -6,6 +6,7 @@ use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use App\Models\Quiz;
 use App\Models\QuizResult;
+use Illuminate\Support\Facades\Cache;
 
 class QuizController extends Controller
 {
@@ -104,20 +105,33 @@ class QuizController extends Controller
 
     /**
      * Get all quizzes grouped by category
+     * Cached for 10 minutes per user premium status
      */
     public function getAllQuizzes()
     {
         $user = auth()->user();
-        $quizzes = Quiz::with('chapter')
-            ->where('is_active', true)
-            ->orderBy('category')
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($quiz) use ($user) {
-                $quiz->is_locked = $quiz->is_premium && !$user->isPremiumActive();
+        $isPremium = $user->isPremiumActive();
+        $cacheKey = "quizzes_all_premium_{$isPremium}";
+
+        // Cache quizzes for 10 minutes
+        $quizzes = Cache::remember($cacheKey, 600, function () use ($user, $isPremium) {
+            // Cache base quiz data for 30 minutes (rarely changes)
+            $quizzesBase = Cache::remember('quizzes_active_ordered', 1800, function () {
+                return Quiz::with('chapter')
+                    ->leftJoin('chapters', 'quizzes.chapter_id', '=', 'chapters.id')
+                    ->where('quizzes.is_active', true)
+                    ->orderBy('quizzes.category')
+                    ->orderByRaw('COALESCE(quizzes.chapter_number, chapters.chapter_number, 999) ASC')
+                    ->orderBy('quizzes.id', 'asc')
+                    ->select('quizzes.*')
+                    ->get();
+            });
+
+            return $quizzesBase->map(function ($quiz) use ($isPremium) {
+                $quiz->is_locked = $quiz->is_premium && !$isPremium;
                 return $quiz;
-            })
-            ->groupBy('category');
+            })->groupBy('category');
+        });
 
         return $this->successResponse([
             'quizzes' => $quizzes
@@ -126,19 +140,30 @@ class QuizController extends Controller
 
     /**
      * Get quizzes by category
+     * Cached for 10 minutes per category and premium status
      */
     public function getQuizzesByCategory($category)
     {
         $user = auth()->user();
-        $quizzes = Quiz::with('chapter')
-            ->where('category', $category)
-            ->where('is_active', true)
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($quiz) use ($user) {
-                $quiz->is_locked = $quiz->is_premium && !$user->isPremiumActive();
+        $isPremium = $user->isPremiumActive();
+        $cacheKey = "quizzes_category_{$category}_premium_{$isPremium}";
+
+        // Cache for 10 minutes
+        $quizzes = Cache::remember($cacheKey, 600, function () use ($category, $isPremium) {
+            $quizzesBase = Quiz::with('chapter')
+                ->leftJoin('chapters', 'quizzes.chapter_id', '=', 'chapters.id')
+                ->where('quizzes.category', $category)
+                ->where('quizzes.is_active', true)
+                ->orderByRaw('COALESCE(quizzes.chapter_number, chapters.chapter_number, 999) ASC')
+                ->orderBy('quizzes.id', 'asc')
+                ->select('quizzes.*')
+                ->get();
+
+            return $quizzesBase->map(function ($quiz) use ($isPremium) {
+                $quiz->is_locked = $quiz->is_premium && !$isPremium;
                 return $quiz;
             });
+        });
 
         return $this->successResponse([
             'category' => $category,
@@ -222,6 +247,9 @@ class QuizController extends Controller
                 'passed' => $passed,
                 'time_taken' => $request->time_taken ?? null
             ]);
+
+            // Clear user progress cache after quiz submission
+            Cache::forget("user_progress_" . auth()->id());
 
             return $this->successResponse([
                 'result' => [
