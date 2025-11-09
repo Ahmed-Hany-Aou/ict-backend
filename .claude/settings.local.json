@@ -32,7 +32,8 @@
       "WebFetch(domain:127.0.0.1)",
       "Bash(curl:*)",
       "Bash(composer require:*)",
-      "Bash(composer remove:*)"
+      "Bash(composer remove:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

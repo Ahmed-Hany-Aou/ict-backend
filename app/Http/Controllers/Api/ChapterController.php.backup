@@ -16,7 +16,7 @@ class ChapterController extends Controller
 {
     use ApiResponse;
     /**
-     * Get all chapters with user progress (including scheduled chapters)
+     * Get all chapters with user progress
      * Cached for 5 minutes per user
      */
     public function index()
@@ -28,18 +28,18 @@ class ChapterController extends Controller
         // Cache the result for 5 minutes (300 seconds)
         $chapters = Cache::remember($cacheKey, 300, function () use ($userId, $user) {
             // Cache chapter base data separately (rarely changes)
-            // NOW INCLUDING scheduled chapters (is_published = true, regardless of publish_at)
-            $chaptersBase = Cache::remember('chapters_published_with_scheduled', 3600, function () {
+            $chaptersBase = Cache::remember('chapters_published', 3600, function () {
                 return Chapter::where('is_published', true)
+                    ->where(function ($query) {
+                        $query->whereNull('publish_at')
+                            ->orWhere('publish_at', '<=', now());
+                    })
                     ->orderBy('chapter_number')
                     ->with(['slides:id,chapter_id']) // Only load IDs for counting
                     ->get();
             });
 
             return $chaptersBase->map(function ($chapter) use ($userId, $user) {
-                // Check if chapter is scheduled (published but future date)
-                $isScheduled = $chapter->isScheduled();
-
                 // Get total slides count from relationship
                 $totalSlides = $chapter->slides->count();
 
@@ -80,8 +80,6 @@ class ChapterController extends Controller
                     'is_published' => $chapter->is_published,
                     'is_premium' => $chapter->is_premium,
                     'is_locked' => $isLocked,
-                    'is_scheduled' => $isScheduled, // NEW: Frontend uses this for "Coming Soon" UI
-                    'publish_at' => $chapter->publish_at ? $chapter->publish_at->format('Y-m-d H:i:s') : null, // NEW
                     'total_slides' => $totalSlides,
                     'slides_count' => $totalSlides, // Alias for compatibility
                     'completed_slides' => $completedSlides,
@@ -223,7 +221,6 @@ class ChapterController extends Controller
         // Cache user progress for 2 minutes
         $statistics = Cache::remember($cacheKey, 120, function () use ($userId) {
             // Cache platform statistics (rarely changes) for 10 minutes
-            // NOTE: For stats, we only count LIVE chapters (not scheduled)
             $platformStats = Cache::remember('platform_stats', 600, function () {
                 return [
                     'total_chapters' => Chapter::where('is_published', true)
@@ -336,7 +333,6 @@ class ChapterController extends Controller
 
         // Clear all user-specific caches
         Cache::forget("chapters_list_user_{$userId}_premium_{$premiumStatus}");
-        Cache::forget("chapters_published_with_scheduled"); // NEW: Clear the base cache too
         Cache::forget("user_progress_{$userId}");
 
         // Clear all chapter-specific caches for this user
