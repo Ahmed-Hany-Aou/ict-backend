@@ -34,7 +34,10 @@ trait ApiResponse
 
         $response['meta'] = $this->getMetadata();
 
-        return response()->json($response, $statusCode);
+        return response()->json($response, $statusCode)
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     /**
