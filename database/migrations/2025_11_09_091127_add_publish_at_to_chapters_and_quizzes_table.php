@@ -12,11 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('chapters', function (Blueprint $table) {
-            $table->dateTime('publish_at')->nullable()->after('is_published');
+            if (!Schema::hasColumn('chapters', 'publish_at')) {
+                $table->dateTime('publish_at')->nullable()->after('is_published');
+            }
         });
 
         Schema::table('quizzes', function (Blueprint $table) {
-            $table->dateTime('publish_at')->nullable()->after('is_active');
+            if (!Schema::hasColumn('quizzes', 'publish_at')) {
+                $table->dateTime('publish_at')->nullable()->after('is_active');
+            }
         });
     }
 
@@ -26,11 +30,15 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('chapters', function (Blueprint $table) {
-            $table->dropColumn('publish_at');
+            if (Schema::hasColumn('chapters', 'publish_at')) {
+                $table->dropColumn('publish_at');
+            }
         });
 
         Schema::table('quizzes', function (Blueprint $table) {
-            $table->dropColumn('publish_at');
+            if (Schema::hasColumn('quizzes', 'publish_at')) {
+                $table->dropColumn('publish_at');
+            }
         });
     }
 };
