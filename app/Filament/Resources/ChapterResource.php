@@ -100,12 +100,20 @@ class ChapterResource extends Resource
                         Forms\Components\Toggle::make('is_published')
                             ->default(true)
                             ->label('Published')
-                            ->helperText('Students can only see published chapters'),
+                            ->helperText('Students can only see published chapters')
+                            ->reactive(),
 
                         Forms\Components\Toggle::make('is_premium')
                             ->default(false)
                             ->label('Premium Content')
                             ->helperText('Requires premium subscription to access'),
+
+                        Forms\Components\DateTimePicker::make('publish_at')
+                            ->label('Scheduled Publish Date')
+                            ->helperText('Leave empty to publish immediately. Set a future date to schedule publishing.')
+                            ->timezone('Africa/Cairo')
+                            ->visible(fn ($get) => $get('is_published'))
+                            ->columnSpanFull(),
                     ])
                     ->columns(2),
             ]);
@@ -141,9 +149,26 @@ class ChapterResource extends Resource
                     ->badge()
                     ->color('primary'),
 
-                Tables\Columns\IconColumn::make('is_published')
-                    ->boolean()
-                    ->label('Published'),
+                Tables\Columns\BadgeColumn::make('publish_status')
+                    ->label('Status')
+                    ->getStateUsing(fn (Chapter $record) => $record->getPublishStatus())
+                    ->colors([
+                        'danger' => 'unpublished',
+                        'warning' => 'scheduled',
+                        'success' => 'published',
+                    ])
+                    ->icons([
+                        'heroicon-o-x-circle' => 'unpublished',
+                        'heroicon-o-clock' => 'scheduled',
+                        'heroicon-o-check-circle' => 'published',
+                    ]),
+
+                Tables\Columns\TextColumn::make('publish_at')
+                    ->dateTime('M d, Y H:i')
+                    ->sortable()
+                    ->label('Publish Date')
+                    ->placeholder('Immediate')
+                    ->toggleable(isToggledHiddenByDefault: false),
 
                 Tables\Columns\IconColumn::make('is_premium')
                     ->boolean()

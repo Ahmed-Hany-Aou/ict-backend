@@ -112,24 +112,26 @@ class QuizController extends Controller
     }
 
     /**
-     * Get all quizzes grouped by category (including scheduled quizzes)
+     * Get all quizzes grouped by category
      * Cached for 10 minutes per user premium status
      */
     public function getAllQuizzes()
     {
         $user = auth()->user();
         $isPremium = $user->isPremiumActive();
-        $cacheKey = "quizzes_all_with_scheduled_premium_{$isPremium}";
+        $cacheKey = "quizzes_all_premium_{$isPremium}";
 
         // Cache quizzes for 10 minutes
         $quizzes = Cache::remember($cacheKey, 600, function () use ($user, $isPremium) {
             // Cache base quiz data for 30 minutes (rarely changes)
-            // NOW INCLUDING scheduled quizzes (is_active = true, regardless of publish_at)
-            $quizzesBase = Cache::remember('quizzes_active_with_scheduled_ordered', 1800, function () {
+            $quizzesBase = Cache::remember('quizzes_active_ordered', 1800, function () {
                 return Quiz::with('chapter')
                     ->leftJoin('chapters', 'quizzes.chapter_id', '=', 'chapters.id')
                     ->where('quizzes.is_active', true)
-                    // REMOVED publish_at filter to include scheduled quizzes
+                    ->where(function ($query) {
+                        $query->whereNull('quizzes.publish_at')
+                            ->orWhere('quizzes.publish_at', '<=', now());
+                    })
                     ->orderBy('quizzes.category')
                     ->orderByRaw('COALESCE(quizzes.chapter_number, chapters.chapter_number, 999) ASC')
                     ->orderBy('quizzes.id', 'asc')
@@ -139,8 +141,6 @@ class QuizController extends Controller
 
             return $quizzesBase->map(function ($quiz) use ($isPremium) {
                 $quiz->is_locked = $quiz->is_premium && !$isPremium;
-                $quiz->is_scheduled = $quiz->isScheduled(); // NEW: Frontend uses this for "Coming Soon" UI
-                $quiz->publish_at_formatted = $quiz->publish_at ? $quiz->publish_at->format('Y-m-d H:i:s') : null; // NEW
                 return $quiz;
             })->groupBy('category');
         });

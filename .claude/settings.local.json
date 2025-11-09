@@ -30,7 +30,10 @@
       "Bash(dir \"C:\\MAMP\\tmp\\php\")",
       "Bash(cat:*)",
       "WebFetch(domain:127.0.0.1)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(composer require:*)",
+      "Bash(composer remove:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

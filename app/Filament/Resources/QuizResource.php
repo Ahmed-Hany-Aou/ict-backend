@@ -71,11 +71,19 @@ class QuizResource extends Resource
                         Forms\Components\Toggle::make('is_active')
                             ->default(true)
                             ->label('Active')
-                            ->helperText('Students can only take active quizzes'),
+                            ->helperText('Students can only take active quizzes')
+                            ->reactive(),
 
                         Forms\Components\Toggle::make('is_premium')
                             ->default(false)
                             ->label('Premium Content'),
+
+                        Forms\Components\DateTimePicker::make('publish_at')
+                            ->label('Scheduled Publish Date')
+                            ->helperText('Leave empty to publish immediately. Set a future date to schedule publishing.')
+                            ->timezone('Africa/Cairo')
+                            ->visible(fn ($get) => $get('is_active'))
+                            ->columnSpanFull(),
                     ])
                     ->columns(2),
 
@@ -163,9 +171,26 @@ class QuizResource extends Resource
                     ->sortable()
                     ->label('Pass %'),
 
-                Tables\Columns\IconColumn::make('is_active')
-                    ->boolean()
-                    ->label('Active'),
+                Tables\Columns\BadgeColumn::make('publish_status')
+                    ->label('Status')
+                    ->getStateUsing(fn (Quiz $record) => $record->getPublishStatus())
+                    ->colors([
+                        'danger' => 'inactive',
+                        'warning' => 'scheduled',
+                        'success' => 'active',
+                    ])
+                    ->icons([
+                        'heroicon-o-x-circle' => 'inactive',
+                        'heroicon-o-clock' => 'scheduled',
+                        'heroicon-o-check-circle' => 'active',
+                    ]),
+
+                Tables\Columns\TextColumn::make('publish_at')
+                    ->dateTime('M d, Y H:i')
+                    ->sortable()
+                    ->label('Publish Date')
+                    ->placeholder('Immediate')
+                    ->toggleable(isToggledHiddenByDefault: false),
 
                 Tables\Columns\IconColumn::make('is_premium')
                     ->boolean()
