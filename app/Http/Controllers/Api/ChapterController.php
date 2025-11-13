@@ -255,9 +255,17 @@ class ChapterController extends Controller
                 ->where('status', 'completed')
                 ->count();
 
-            // Count completed slides
-            $completedSlides = SlideProgress::where('user_id', $userId)
-                ->where('completed', true)
+            // Count completed slides (only from LIVE chapters)
+            $completedSlides = DB::table('slide_progress')
+                ->join('slides', 'slide_progress.slide_id', '=', 'slides.id')
+                ->join('chapters', 'slides.chapter_id', '=', 'chapters.id')
+                ->where('slide_progress.user_id', $userId)
+                ->where('slide_progress.completed', true)
+                ->where('chapters.is_published', true)
+                ->where(function ($query) {
+                    $query->whereNull('chapters.publish_at')
+                        ->orWhere('chapters.publish_at', '<=', now());
+                })
                 ->count();
 
             // Count passed quizzes (best attempt only)
@@ -269,15 +277,19 @@ class ChapterController extends Controller
                 ->get()
                 ->count();
 
-            // Calculate weighted progress
+            // Calculate actual percentages (0-100)
+            $slideProgressPercentage = $platformStats['total_slides'] > 0
+                ? ($completedSlides / $platformStats['total_slides']) * 100
+                : 0;
+            $quizProgressPercentage = $platformStats['total_quizzes'] > 0
+                ? ($passedQuizzes / $platformStats['total_quizzes']) * 100
+                : 0;
+
+            // Calculate weighted overall progress
             // Slides: 60%, Quizzes: 40%
-            $slideProgress = $platformStats['total_slides'] > 0
-                ? ($completedSlides / $platformStats['total_slides']) * 60
-                : 0;
-            $quizProgress = $platformStats['total_quizzes'] > 0
-                ? ($passedQuizzes / $platformStats['total_quizzes']) * 40
-                : 0;
-            $overallProgress = round($slideProgress + $quizProgress);
+            $slideWeightedProgress = $slideProgressPercentage * 0.6;
+            $quizWeightedProgress = $quizProgressPercentage * 0.4;
+            $overallProgress = round($slideWeightedProgress + $quizWeightedProgress);
 
             return [
                 'total_chapters' => $platformStats['total_chapters'],
@@ -286,8 +298,8 @@ class ChapterController extends Controller
                 'completed_slides' => $completedSlides,
                 'total_quizzes' => $platformStats['total_quizzes'],
                 'passed_quizzes' => $passedQuizzes,
-                'slide_progress' => round($slideProgress),
-                'quiz_progress' => round($quizProgress),
+                'slide_progress' => round($slideProgressPercentage),
+                'quiz_progress' => round($quizProgressPercentage),
                 'overall_progress' => $overallProgress
             ];
         });
