@@ -1,2 +1,5 @@
 *
 !.gitignore
+
+.helping_folder
+.frontend-examples

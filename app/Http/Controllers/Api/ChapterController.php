@@ -36,28 +36,40 @@ class ChapterController extends Controller
                     ->get();
             });
 
-            return $chaptersBase->map(function ($chapter) use ($userId, $user) {
+            // Eager load user progress data to prevent N+1 queries
+            $chapterIds = $chaptersBase->pluck('id');
+
+            // Get completed slides count for all chapters in one query
+            $completedSlidesCount = SlideProgress::where('user_id', $userId)
+                ->where('completed', true)
+                ->whereIn('chapter_id', $chapterIds)
+                ->select('chapter_id', DB::raw('count(*) as count'))
+                ->groupBy('chapter_id')
+                ->pluck('count', 'chapter_id');
+
+            // Get user progress for all chapters in one query
+            $userProgressData = UserProgress::where('user_id', $userId)
+                ->whereIn('chapter_id', $chapterIds)
+                ->get()
+                ->keyBy('chapter_id');
+
+            return $chaptersBase->map(function ($chapter) use ($userId, $user, $completedSlidesCount, $userProgressData) {
                 // Check if chapter is scheduled (published but future date)
                 $isScheduled = $chapter->isScheduled();
 
                 // Get total slides count from relationship
                 $totalSlides = $chapter->slides->count();
 
-                // Count completed slides with optimized query
-                $completedSlides = SlideProgress::where('chapter_id', $chapter->id)
-                    ->where('user_id', $userId)
-                    ->where('completed', true)
-                    ->count();
+                // Get completed slides from preloaded data
+                $completedSlides = $completedSlidesCount[$chapter->id] ?? 0;
 
                 // Calculate progress percentage
                 $progressPercentage = $totalSlides > 0
                     ? round(($completedSlides / $totalSlides) * 100)
                     : 0;
 
-                // Check user_progress table for chapter completion status
-                $userProgress = UserProgress::where('user_id', $userId)
-                    ->where('chapter_id', $chapter->id)
-                    ->first();
+                // Get user progress from preloaded data
+                $userProgress = $userProgressData[$chapter->id] ?? null;
 
                 // Determine status
                 $status = 'not_started';
