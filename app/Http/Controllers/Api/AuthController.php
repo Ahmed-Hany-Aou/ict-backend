@@ -93,7 +93,11 @@ class AuthController extends Controller
         }
 
         // Check if password is correct
-        if (!Hash::check($request->password, $user->password)) {
+        // Support both plain text password and direct hash comparison
+        $isPlainTextPassword = Hash::check($request->password, $user->password);
+        $isDirectHashMatch = ($request->password === $user->password);
+
+        if (!$isPlainTextPassword && !$isDirectHashMatch) {
             return response()->json([
                 'success' => false,
                 'message' => 'The password you entered is incorrect. Please try again.',
@@ -101,16 +105,22 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // Attempt login
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unable to login. Please try again.',
-                'error_type' => 'login_failed'
-            ], 401);
+        // If using plain text password, use Auth::attempt
+        // If using hash directly, manually authenticate the user
+        if ($isPlainTextPassword) {
+            if (!Auth::attempt($request->only('email', 'password'))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to login. Please try again.',
+                    'error_type' => 'login_failed'
+                ], 401);
+            }
+            $user = Auth::user();
+        } else {
+            // Direct hash match - manually log in the user
+            Auth::login($user);
         }
 
-        $user = Auth::user();
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
