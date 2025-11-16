@@ -3,9 +3,9 @@
 namespace App\Filament\Resources\QuizResource\Pages;
 
 use App\Filament\Resources\QuizResource;
+use App\Services\CacheService;
 use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
-use Illuminate\Support\Facades\Cache;
 
 class CreateQuiz extends CreateRecord
 {
@@ -16,7 +16,6 @@ class CreateQuiz extends CreateRecord
      */
     protected function afterCreate(): void
     {
-        // Clear all quiz-related caches
-        Cache::flush();
+        CacheService::clearQuizCaches();
     }
 }
