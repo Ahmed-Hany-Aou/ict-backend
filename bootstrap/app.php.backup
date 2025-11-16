@@ -16,13 +16,8 @@ return Application::configure(basePath: dirname(__DIR__))
    ->withMiddleware(function (Middleware $middleware) {
     // TrustProxies configuration removed - using App\Http\Middleware\TrustProxies instead
     // This prevents conflicts between bootstrap/app.php and the middleware class
-
-    // Add no-cache headers to all API routes to prevent browser caching
-    $middleware->api(append: [
-        \App\Http\Middleware\NoCacheHeaders::class,
-    ]);
 })
-
+    
     ->withExceptions(function (Exceptions $exceptions): void {
         // Handle ModelNotFoundException (404)
         $exceptions->render(function (\Illuminate\Database\Eloquent\ModelNotFoundException $e, $request) {
