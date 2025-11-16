@@ -7,7 +7,6 @@ use App\Traits\ApiResponse;
 use App\Models\Slide;
 use App\Models\SlideProgress;
 use App\Models\Chapter;
-use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -53,7 +52,7 @@ class SlideController extends Controller
         return $this->successResponse([
             'slides' => $slidesData
         ], 'Slides retrieved successfully');
-    }
+    } 
 
     public function show($id)
     {
@@ -143,8 +142,8 @@ class SlideController extends Controller
             $updateData
         );
 
-        // Clear user cache when slide is completed using CacheService
-        CacheService::clearUserCache($userId);
+        // Clear user cache when slide is completed
+        $this->clearSlideCache($userId, $slide->chapter_id);
 
         return $this->successResponse(null, 'Slide marked as completed');
     }
@@ -193,7 +192,7 @@ class SlideController extends Controller
     public function getNext($id)
     {
         $currentSlide = Slide::findOrFail($id);
-
+        
         $nextSlide = Slide::where('chapter_id', $currentSlide->chapter_id)
             ->where('slide_number', '>', $currentSlide->slide_number)
             ->orderBy('slide_number')
@@ -211,7 +210,7 @@ class SlideController extends Controller
     public function getPrevious($id)
     {
         $currentSlide = Slide::findOrFail($id);
-
+        
         $previousSlide = Slide::where('chapter_id', $currentSlide->chapter_id)
             ->where('slide_number', '<', $currentSlide->slide_number)
             ->orderBy('slide_number', 'desc')
@@ -224,5 +223,19 @@ class SlideController extends Controller
         return $this->successResponse([
             'slide' => $previousSlide
         ], 'Previous slide retrieved successfully');
+    }
+
+    /**
+     * Clear slide-related caches when progress changes
+     */
+    private function clearSlideCache($userId, $chapterId)
+    {
+        $user = Auth::user();
+        $premiumStatus = $user ? $user->isPremiumActive() : false;
+
+        // Clear user progress and chapter list caches
+        Cache::forget("chapters_list_user_{$userId}_premium_{$premiumStatus}");
+        Cache::forget("user_progress_{$userId}");
+        Cache::forget("chapter_{$chapterId}_user_{$userId}");
     }
 }

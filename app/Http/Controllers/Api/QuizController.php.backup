@@ -6,7 +6,6 @@ use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use App\Models\Quiz;
 use App\Models\QuizResult;
-use App\Services\CacheService;
 use Illuminate\Support\Facades\Cache;
 
 class QuizController extends Controller
@@ -266,7 +265,7 @@ class QuizController extends Controller
             ]);
 
             // Clear user progress cache after quiz submission
-            CacheService::clearUserCache(auth()->id());
+            Cache::forget("user_progress_" . auth()->id());
 
             return $this->successResponse([
                 'result' => [

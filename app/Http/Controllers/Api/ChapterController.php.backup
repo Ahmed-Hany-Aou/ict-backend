@@ -7,7 +7,6 @@ use App\Traits\ApiResponse;
 use App\Models\Chapter;
 use App\Models\UserProgress;
 use App\Models\SlideProgress;
-use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -157,7 +156,7 @@ class ChapterController extends Controller
 
                 // If created, clear user's chapter list cache
                 if ($userProgress->wasRecentlyCreated) {
-                    CacheService::clearUserCache($userId);
+                    $this->clearUserCache($userId);
                 }
 
                 // Get all slide progress for this chapter in one query (optimized)
@@ -216,8 +215,9 @@ class ChapterController extends Controller
             ]
         );
 
-        // Clear cache after marking complete using CacheService
-        CacheService::clearUserCache($userId);
+        // Clear cache after marking complete
+        $this->clearUserCache($userId);
+        Cache::forget("chapter_{$id}_user_{$userId}");
 
         return $this->successResponse(null, 'Chapter marked as completed');
     }
@@ -341,11 +341,32 @@ class ChapterController extends Controller
             ]
         );
 
-        // Clear cache if newly created using CacheService
+        // Clear cache if newly created
         if ($userProgress->wasRecentlyCreated) {
-            CacheService::clearUserCache($userId);
+            $this->clearUserCache($userId);
         }
 
         return $this->successResponse(null, 'Chapter started');
+    }
+
+    /**
+     * Clear user-specific caches
+     * Call this whenever user progress changes
+     */
+    private function clearUserCache($userId)
+    {
+        $user = Auth::user();
+        $premiumStatus = $user ? $user->isPremiumActive() : false;
+
+        // Clear all user-specific caches
+        Cache::forget("chapters_list_user_{$userId}_premium_{$premiumStatus}");
+        Cache::forget("chapters_published_with_scheduled"); // NEW: Clear the base cache too
+        Cache::forget("user_progress_{$userId}");
+
+        // Clear all chapter-specific caches for this user
+        $chapterIds = Chapter::pluck('id');
+        foreach ($chapterIds as $chapterId) {
+            Cache::forget("chapter_{$chapterId}_user_{$userId}");
+        }
     }
 }
