@@ -120,7 +120,7 @@ class QuizController extends Controller
     {
         $user = auth()->user();
         $isPremium = $user->isPremiumActive();
-        $cacheKey = "quizzes_all_with_scheduled_premium_{$isPremium}";
+        $cacheKey = "quizzes_all_with_scheduled_premium_" . ($isPremium ? 'true' : 'false');
 
         // Cache quizzes for 10 minutes
         $quizzes = Cache::remember($cacheKey, 600, function () use ($user, $isPremium) {
@@ -159,7 +159,7 @@ class QuizController extends Controller
     {
         $user = auth()->user();
         $isPremium = $user->isPremiumActive();
-        $cacheKey = "quizzes_category_{$category}_premium_{$isPremium}";
+        $cacheKey = "quizzes_category_{$category}_premium_" . ($isPremium ? 'true' : 'false');
 
         // Cache for 10 minutes
         $quizzes = Cache::remember($cacheKey, 600, function () use ($category, $isPremium) {

@@ -24,7 +24,7 @@ class ChapterController extends Controller
     {
         $userId = Auth::id();
         $user = Auth::user();
-        $cacheKey = "chapters_list_user_{$userId}_premium_{$user->isPremiumActive()}";
+        $cacheKey = "chapters_list_user_{$userId}_premium_" . ($user->isPremiumActive() ? 'true' : 'false');
 
         // Cache the result for 5 minutes (300 seconds)
         $chapters = Cache::remember($cacheKey, 300, function () use ($userId, $user) {
