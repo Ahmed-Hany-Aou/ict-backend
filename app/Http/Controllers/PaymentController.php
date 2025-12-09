@@ -97,12 +97,11 @@ class PaymentController extends Controller
         // Use 'sometimes|file' so validation only runs when a file is present and surfaces upload problems
         $validator = Validator::make($request->all(), [
             'payment_reference' => 'required|string|max:255',
-            'amount' => 'not required|numeric|min:0',
+            'amount' => 'nullable|numeric|min:0', // Changed to nullable
             'screenshot' => 'required|nullable|file|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
         ], [
             'screenshot.image' => 'Screenshot must be an image file',
             'screenshot.max' => 'Screenshot size must not exceed 10MB',
-            'amount.required' => 'Payment amount is required',
             'amount.numeric' => 'Payment amount must be a number',
         ]);
 
@@ -136,9 +135,9 @@ class PaymentController extends Controller
                // return response()->json([
                    // 'success' => false,
                    // 'message' => "Invalid payment amount. Expected amount is {$expectedPrice} EGP.",
-                  //  'errors' => [
+                   //  'errors' => [
                    ////     //'amount' => ["The payment amount must be {$expectedPrice} EGP"]
-                  //  ]
+                   //  ]
               //  ], 422);
           //  }
        // }
@@ -154,10 +153,13 @@ class PaymentController extends Controller
             $payment = Payment::create([
                 'user_id' => auth()->id(),
                 'payment_reference' => $request->payment_reference,
-                'amount' => $request->amount,
+                'amount' => $request->amount ?? 0.00, // Default to 0 if null
                 'screenshot_path' => $screenshotPath,
                 'status' => 'pending'
             ]);
+
+            // Dispatch AI Verification Event
+            \App\Events\PaymentSubmitted::dispatch($payment);
 
             return response()->json([
                 'success' => true,

@@ -25,6 +25,11 @@ Route::middleware('api')->group(function () {
     // Pricing (public route)
     Route::get('/pricing', [PricingController::class, 'index']);
 
+    // n8n Webhook (Protected by Secret Header)
+    Route::post('/webhooks/n8n/payment-result', [\App\Http\Controllers\Api\PaymentWebhookController::class, 'handleAIResult']);
+
+
+
 
 
     Route::middleware('auth:sanctum')->group(function () {

@@ -1,0 +1,211 @@
+{
+    "name": "AI Payment Verification v2",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "payment-verification",
+                "options": {
+                    "binaryData": true
+                }
+            },
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                272,
+                64
+            ],
+            "id": "webhook-node"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Debug: Log all webhook data\nconst webhook = $('Webhook').first();\nconsole.log('=== WEBHOOK DEBUG ===');\nconsole.log('Full webhook data:', JSON.stringify(webhook.json, null, 2));\nconsole.log('Query params:', webhook.json.query);\nconsole.log('Body:', webhook.json.body);\nconsole.log('Headers:', webhook.json.headers);\nreturn items;"
+            },
+            "name": "Debug Webhook",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                400,
+                200
+            ],
+            "id": "debug-webhook-node"
+        },
+        {
+            "parameters": {
+                "resource": "image",
+                "operation": "analyze",
+                "model": "gpt-4o",
+                "binaryPropertyName": "data",
+                "text": "You are analyzing a payment screenshot to verify its authenticity. Extract ALL visible transaction details.\n\nCONTEXT:\n- Expected amount: {{ $('Webhook').item.json.query.expected_amount }} EGP (may be 0 if not set)\n- User ID: {{ $('Webhook').item.json.query.user_id }}\n- Current date: December 3, 2025\n\nINSTRUCTIONS:\n1. ALWAYS extract all visible data from the screenshot, even if you plan to reject it\n2. Look for: amount, date, transaction/reference ID, sender account, recipient account\n3. Support Egyptian payment systems: InstaPay, bank transfers, Vodafone Cash, etc.\n4. Extract dates in YYYY-MM-DD format (convert if needed)\n5. Extract ALL transaction IDs/reference numbers you can find\n\nVALIDATION CRITERIA:\n- Amount match: If expected_amount > 0, check if extracted amount is within ±10%\n- If expected_amount = 0, any amount is acceptable (system default)\n- Date check: Transaction should be within last 7 days\n- Format check: Image should clearly show a payment/transfer confirmation\n\nCONFIDENCE SCORING:\n- 95-100: Perfect match, clear screenshot, all details visible\n- 85-94: Good match, minor discrepancies (e.g., small amount difference)\n- 70-84: Acceptable but needs review (e.g., date is old, unclear image)\n- 50-69: Significant issues but might be valid\n- 0-49: Reject (fake, unreadable, wrong transaction type)\n\nRECOMMENDATIONS:\n- \"approve\": confidence_score >= 90 AND all validations pass\n- \"review\": confidence_score 50-89 OR amount mismatch > 10%\n- \"reject\": confidence_score < 50 OR clearly fake/invalid\n\nOUTPUT FORMAT (JSON only, no markdown):\n{\n  \"extracted_data\": {\n    \"amount\": <number or null>,\n    \"date\": \"YYYY-MM-DD\" or null,\n    \"transaction_id\": \"string\" or null,\n    \"sender_account\": \"string\" or null,\n    \"recipient_account\": \"string\" or null\n  },\n  \"validation\": {\n    \"amount_match\": true/false,\n    \"date_is_recent\": true/false,\n    \"format_valid\": true/false,\n    \"is_clear_image\": true/false\n  },\n  \"confidence_score\": 0-100,\n  \"recommendation\": \"approve\" or \"review\" or \"reject\",\n  \"reason\": \"Brief explanation of your decision\"\n}"
+            },
+            "name": "Analyze image",
+            "type": "n8n-nodes-base.openAi",
+            "typeVersion": 1,
+            "position": [
+                500,
+                64
+            ],
+            "id": "analyze-node",
+            "credentials": {
+                "openAiApi": {
+                    "id": "u2GSVSePSBF1MDyw",
+                    "name": "OpenAi account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const inputItem = items.length > 0 ? items[0] : {};\nconst item = inputItem.json || {};\nconst aiText = item.message?.content || item.text || item.output || JSON.stringify(inputItem);\n// Remove markdown code blocks if present\nconst cleanJson = aiText.replace(/```json\\n?|```/g, '').trim();\nlet parsed = {};\ntry {\n  parsed = JSON.parse(cleanJson);\n} catch (e) {\n  parsed = { error: \"Failed to parse JSON\", raw: aiText, input_keys: Object.keys(item) };\n}\n\n// Get data from Webhook node (Query Params)\nlet webhookQuery = {};\ntry {\n  const webhookData = $('Webhook').first();\n  webhookQuery = webhookData ? webhookData.json.query : {};\n} catch(e) {\n  webhookQuery = { error: e.message };\n}\n\n// Convert string values to proper types\nconst paymentId = webhookQuery.payment_id ? parseInt(webhookQuery.payment_id, 10) : null;\nconst userId = webhookQuery.user_id ? parseInt(webhookQuery.user_id, 10) : null;\nconst expectedAmount = webhookQuery.expected_amount ? parseFloat(webhookQuery.expected_amount) : 0;\n\nreturn {\n  json: {\n    ...parsed,\n    payment_id: paymentId,\n    user_id: userId,\n    original_amount: expectedAmount,\n    confidence_score: parsed.confidence_score || 0,\n    recommendation: parsed.recommendation || \"reject\",\n    extracted_data: parsed.extracted_data || {},\n    debug_webhook: webhookQuery\n  }\n};"
+            },
+            "name": "Parse Output",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                750,
+                64
+            ],
+            "id": "parse-node"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "value1": "={{ $json.confidence_score }}",
+                            "operation": "larger",
+                            "value2": 90
+                        }
+                    ],
+                    "string": [
+                        {
+                            "value1": "={{ $json.recommendation }}",
+                            "value2": "approve"
+                        }
+                    ]
+                }
+            },
+            "name": "Auto-Approve?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                64
+            ],
+            "id": "if-node"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Prepare the exact payload for Laravel\nconst data = items[0].json;\n\nconsole.log('=== SENDING TO LARAVEL ===');\nconsole.log('payment_id:', data.payment_id, '(type:', typeof data.payment_id, ')');\nconsole.log('confidence_score:', data.confidence_score);\nconsole.log('recommendation:', data.recommendation);\n\n// Create the payload\nconst payload = {\n  payment_id: data.payment_id,\n  confidence_score: data.confidence_score,\n  recommendation: data.recommendation,\n  extracted_data: data.extracted_data || {},\n  analysis_json: data\n};\n\nconsole.log('Payload to send:', JSON.stringify(payload, null, 2));\n\nreturn [{\n  json: {\n    payload: payload\n  }\n}];"
+            },
+            "name": "Prepare Callback Payload",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1100,
+                64
+            ],
+            "id": "prepare-callback-node"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://127.0.0.1:8000/api/webhooks/n8n/payment-result",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "X-N8N-SECRET",
+                            "value": "1bd42b2ea94ba313ef7fccae55eb6290d2c5f12d3d0"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ $json.payload }}",
+                "options": {}
+            },
+            "name": "Callback to Laravel",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1250,
+                64
+            ],
+            "id": "callback-node"
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Analyze image",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Debug Webhook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Analyze image": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Output",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Output": {
+            "main": [
+                [
+                    {
+                        "node": "Auto-Approve?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Auto-Approve?": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Callback Payload",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Prepare Callback Payload",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Callback Payload": {
+            "main": [
+                [
+                    {
+                        "node": "Callback to Laravel",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

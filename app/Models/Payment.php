@@ -13,16 +13,25 @@ class Payment extends Model
         'user_id',
         'payment_reference',
         'screenshot_path',
-        //'amount',
+        'amount',
         'status',
         'admin_notes',
         'approved_by',
-        'approved_at'
+        'approved_at',
+        'is_ai_verified',
+        'ai_confidence_score',
+        'ai_recommendation',
+        'ai_analysis_result',
+        'transaction_id_extracted',
+        'ai_reviewed_at'
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
-        'approved_at' => 'datetime'
+        'approved_at' => 'datetime',
+        'is_ai_verified' => 'boolean',
+        'ai_analysis_result' => 'array',
+        'ai_reviewed_at' => 'datetime'
     ];
 
     public function user()

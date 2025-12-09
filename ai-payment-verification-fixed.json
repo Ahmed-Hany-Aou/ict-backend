@@ -1,0 +1,239 @@
+{
+    "name": "AI Payment Verification v2",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "payment-verification",
+                "options": {
+                    "binaryData": true
+                }
+            },
+            "id": "bb8a2dd2-bdf3-4a56-a419-c4630e58e2ef",
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2.1,
+            "position": [
+                -624,
+                128
+            ],
+            "webhookId": "aefed34b-5f4b-46e0-9fa4-0bb905e04cfa"
+        },
+        {
+            "parameters": {
+                "modelId": {
+                    "__rl": true,
+                    "value": "gpt-4o",
+                    "mode": "list",
+                    "cachedResultName": "GPT-4O"
+                },
+                "responses": {
+                    "values": [
+                        {
+                            "content": "You are analyzing a payment screenshot to verify its authenticity. Extract ALL visible transaction details.\n\nCONTEXT:\n- Expected amount: {{ $('Webhook').item.json.query.expected_amount }} EGP\n- User ID: {{ $('Webhook').item.json.query.user_id }}\n- Current date/time (ISO 8601): {{ $('Webhook').item.json.query.timestamp }}\n\n\n\nYour job is to:\n1. Extract the payment details from the screenshot.\n2. Evaluate basic technical validity (clarity, format, recency, amount vs expected).\n3. Provide a recommendation and a clear reason.\nIMPORTANT: You are NOT the final decision-maker. The Laravel backend will apply strict business rules (amount, recipient, duplicates, etc.) and has the final say. Your output must still strictly follow the format and rules below.\n\nINSTRUCTIONS:\n1. ALWAYS extract all visible data from the screenshot, even if you plan to reject it.\n2. Look for at least: amount, date & time of the transfer, transaction/reference ID, sender account, recipient account.\n3. Support Egyptian payment systems: InstaPay, bank transfers, Vodafone Cash, etc.\n4. If the payment screen shows both date and time (for example: \"03 Dec 2025 05:42 PM\"), convert it to ISO 8601 date-time format, e.g. \"2025-12-03T17:42:00\".\n5. If you can only read the date but not the time, still output a valid date-time string by setting the time to \"00:00:00\" (for example: \"2025-12-03T00:00:00\").\n6. Extract ALL transaction IDs/reference numbers you can find.\n7. If any field is not visible or unreadable, set it to null.\n\nVALIDATION CRITERIA (for the fields you output):\n- amount_match:\n  - Convert both the extracted amount and the expected_amount from context to numbers.\n  - amount_match = true ONLY if extracted_amount == expected_amount (treat 500 and 500.00 as equal).\n  - No tolerance: do NOT allow any range. It must be an exact match.\n\n- date_is_recent:\n  - Use the \"Current date/time (ISO 8601)\" from CONTEXT as your reference.\n  - The extracted \"date\" field should be a full date-time in ISO 8601 format, e.g. \"YYYY-MM-DDTHH:MM:SS\".\n  - Calculate the time difference between the extracted payment date-time and the current date-time in context.\n  - date_is_recent = true ONLY if the payment date-time is **within the last 24 hours** (difference <= 24 hours).\n  - If the payment date-time is older than 24 hours (difference > 24 hours), or if the date/time is unreadable or clearly inconsistent, set date_is_recent = false.\n\n- format_valid:\n  - true if the screenshot clearly looks like a real payment/transfer confirmation screen or receipt (not a chat, not an image editor, not a gallery view, not a list of many transactions).\n\n- is_clear_image:\n  - true if the key fields (amount, date/time, transaction ID, sender, recipient) are readable without guessing.\n  - false if they are blurred, cropped, too small, or heavily covered/edited.\n\nADDITIONAL DOMAIN RULES (for your reasoning and recommendation text):\n- Recipient account:\n  - The correct and valid recipient account for the business is exactly: \"ahmedhanycib@instapay\".\n  - If the recipient_account in the screenshot is anything else (even a small typo), explicitly mention this in the reason and treat it as a strong negative signal.\n\n- Sender account:\n  - Sender can be any user, but a valid InstaPay handle should end with \"@instapay\".\n  - If the sender_account clearly does NOT end with \"@instapay\", mention this in the reason and treat it as suspicious.\n\n- If any field is missing (e.g. transaction_id or date/time not visible), mention that clearly in the reason.\n\nCONFIDENCE SCORING (advisory only – Laravel will make the final decision):\n- 95-100: Perfect or near-perfect match, clear screenshot, all important details visible and consistent.\n- 85-94: Good match, minor issues (e.g., small visual imperfections, but overall consistent).\n- 70-84: Acceptable but needs review (e.g., date/time borderline, some parts slightly unclear, or minor inconsistencies).\n- 50-69: Significant issues or doubts, might be valid but risky.\n- 0-49: Clearly invalid, fake, heavily edited, unreadable, or not a payment/transfer confirmation.\n\nRECOMMENDATIONS (advisory only – backend will apply strict business rules):\n- \"approve\":\n  - Use only when: amount_match = true, date_is_recent = true, format_valid = true, is_clear_image = true,\n  - AND the recipient_account exactly matches \"ahmedhanycib@instapay\",\n  - AND the sender_account ends with \"@instapay\",\n  - AND you see no strong red flags.\n\n- \"review\":\n  - Use when the payment might be valid but there are concerns:\n    - Slightly unclear image but still mostly readable,\n    - Date/time is close to the limit or not fully certain,\n    - Sender format looks unusual but still plausible,\n    - Or you are not fully confident but it’s not clearly fake.\n\n- \"reject\":\n  - Use when there are strong reasons to consider it invalid or unsafe:\n    - amount_match = false,\n    - OR date_is_recent = false (older than 24 hours or inconsistent),\n    - OR format_invalid (not a payment screen),\n    - OR image is very unclear / heavily edited,\n    - OR recipient_account is clearly NOT \"ahmedhanycib@instapay\",\n    - OR other strong signs of fraud or manipulation.\n\nOUTPUT FORMAT (JSON only, no markdown, no extra text):\n{\n  \"extracted_data\": {\n    \"amount\": <number or null>,\n    \"date\": \"YYYY-MM-DDTHH:MM:SS\" or null,\n    \"transaction_id\": \"string\" or null,\n    \"sender_account\": \"string\" or null,\n    \"recipient_account\": \"string\" or null\n  },\n  \"validation\": {\n    \"amount_match\": true/false,\n    \"date_is_recent\": true/false,\n    \"format_valid\": true/false,\n    \"is_clear_image\": true/false\n  },\n  \"confidence_score\": 0-100,\n  \"recommendation\": \"approve\" or \"review\" or \"reject\",\n  \"reason\": \"Brief explanation of your decision, explicitly mentioning any mismatches (amount, date/time, recipient, sender, clarity, format).\"\n}\n"
+                        },
+                        {
+                            "type": "image",
+                            "imageType": "base64",
+                            "binaryPropertyName": "data"
+                        }
+                    ]
+                },
+                "builtInTools": {},
+                "options": {}
+            },
+            "id": "f76d2878-ae2d-4215-9d99-65da8198507b",
+            "name": "Message a model",
+            "type": "@n8n/n8n-nodes-langchain.openAi",
+            "typeVersion": 2.1,
+            "position": [
+                -288,
+                128
+            ],
+            "credentials": {
+                "openAiApi": {
+                    "id": "u2GSVSePSBF1MDyw",
+                    "name": "OpenAi account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const webhook = $('Webhook').first();\n\nconsole.log('=== WEBHOOK DEBUG ===');\nconsole.log('Timestamp ya hany:', webhook.json.query.timestamp);\nconsole.log('Full webhook data:', JSON.stringify(webhook.json, null, 2));\n\nreturn items;\n"
+            },
+            "id": "9767f582-ae75-4b6b-bfe3-0f69a38eb960",
+            "name": "Debug Webhook",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -320,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const inputItem = items.length > 0 ? items[0] : {};\nconst item = inputItem.json || {};\n\n// Extract AI response text from different possible formats\nlet aiText = '';\n\n// New OpenAI node format: output[0].content[0].text\nif (item.output?.[0]?.content?.[0]?.text) {\n  aiText = item.output[0].content[0].text;\n}\n// Old OpenAI format: choices[0].message.content\nelse if (item.choices?.[0]?.message?.content) {\n  const content = item.choices[0].message.content;\n  aiText = Array.isArray(content) ? content.map(p => p.text || p.content || '').join('\\n').trim() : content;\n}\n// Fallback formats\nelse if (item.message?.content) {\n  aiText = item.message.content;\n} else if (item.text) {\n  aiText = item.text;\n} else {\n  aiText = JSON.stringify(item);\n}\n\nconsole.log('=== AI RAW RESPONSE ===');\nconsole.log(aiText);\n\n// Clean and parse JSON\nconst cleanJson = aiText.replace(/```json\\s*|```/g, '').trim();\nlet parsed = {};\ntry {\n  parsed = JSON.parse(cleanJson);\n  console.log('=== PARSED AI RESPONSE ===');\n  console.log(JSON.stringify(parsed, null, 2));\n} catch (e) {\n  console.error('Failed to parse AI response:', e.message);\n  parsed = { error: 'Failed to parse JSON', raw: aiText, input_keys: Object.keys(item) };\n}\n\n// Get webhook query params\nlet webhookQuery = {};\ntry {\n  const webhookData = $('Webhook').first();\n  webhookQuery = webhookData ? webhookData.json.query : {};\n} catch (e) {\n  webhookQuery = { error: e.message };\n}\n\nconst paymentId = webhookQuery.payment_id ? parseInt(webhookQuery.payment_id, 10) : null;\nconst userId = webhookQuery.user_id ? parseInt(webhookQuery.user_id, 10) : null;\nconst expectedAmount = webhookQuery.expected_amount ? parseFloat(webhookQuery.expected_amount) : 0;\n\nreturn {\n  json: {\n    ...parsed,\n    payment_id: paymentId,\n    user_id: userId,\n    original_amount: expectedAmount,\n    confidence_score: parsed.confidence_score || 0,\n    recommendation: parsed.recommendation || 'reject',\n    reason: parsed.reason || 'No reason provided',\n    extracted_data: parsed.extracted_data || {},\n    debug_webhook: webhookQuery,\n  }\n};"
+            },
+            "id": "f5e49470-7936-45c2-ad4f-2cf05b550316",
+            "name": "Parse Output",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                64,
+                128
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "value1": "={{ $json.confidence_score }}",
+                            "operation": "larger",
+                            "value2": 90
+                        }
+                    ],
+                    "string": [
+                        {
+                            "value1": "={{ $json.recommendation }}",
+                            "value2": "approve"
+                        }
+                    ]
+                }
+            },
+            "id": "da4d0735-0052-4fbd-b9f9-96684eaf52ca",
+            "name": "Auto-Approve?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                400,
+                128
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Prepare the exact payload for Laravel\nconst data = items[0].json;\nconst payload = {\n  payment_id: data.payment_id,\n  confidence_score: data.confidence_score,\n  recommendation: data.recommendation,\n  reason: data.reason || 'No reason provided',\n  extracted_data: data.extracted_data || {},\n  analysis_json: data,\n};\nconsole.log('Final payload to Laravel:', JSON.stringify(payload, null, 2));\nreturn [{ json: { payload } }];"
+            },
+            "id": "a834246c-19a7-44fa-b2dd-4ebeebcb7ecf",
+            "name": "Prepare Callback Payload",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                672,
+                128
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://127.0.0.1:8000/api/webhooks/n8n/payment-result",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "X-N8N-SECRET",
+                            "value": "1bd42b2ea94ba313ef7fccae55eb6290d2c5f12d3d0"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ $json.payload }}",
+                "options": {}
+            },
+            "id": "918f75d5-aa94-4521-a9da-4d3c409f8e54",
+            "name": "Callback to Laravel",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                928,
+                128
+            ]
+        }
+    ],
+    "pinData": {},
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Message a model",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Debug Webhook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Message a model": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Output",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Output": {
+            "main": [
+                [
+                    {
+                        "node": "Auto-Approve?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Auto-Approve?": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Callback Payload",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Prepare Callback Payload",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Callback Payload": {
+            "main": [
+                [
+                    {
+                        "node": "Callback to Laravel",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "active": true,
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "versionId": "28011a49-9653-45ef-baac-27dbe8c890b1",
+    "meta": {
+        "templateCredsSetupCompleted": true,
+        "instanceId": "1d00a0671a7e88fce9eedd7a7cc69725fde7377ca33555214e9bac4313166604"
+    },
+    "id": "BjhmZaKDx1xKXNNo",
+    "tags": []
+}

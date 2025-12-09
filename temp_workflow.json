@@ -1,0 +1,181 @@
+{
+  "name": "AI Payment Verification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "payment-verification",
+        "options": {
+          "binaryData": true
+        }
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        272,
+        64
+      ],
+      "id": "a2ad3bc4-1221-4bf3-beaa-93f0a5c45c99",
+      "webhookId": "b8d44127-112f-49d6-8ba1-a7f747caac6c"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "model": "gpt-4o",
+        "binaryPropertyName": "data",
+        "text": "Analyze this bank transfer screenshot and extract the transaction details.\n\nREQUIRED OUTPUT FORMAT (JSON only):\n{\n  \"extracted_data\": {\n    \"amount\": number,\n    \"date\": \"YYYY-MM-DD\",\n    \"transaction_id\": \"string\",\n    \"sender_account\": \"string\"\n  },\n  \"validation\": {\n    \"amount_match\": boolean,\n    \"date_is_recent\": boolean,\n    \"format_valid\": boolean\n  },\n  \"confidence_score\": 0-100,\n  \"recommendation\": \"approve\" | \"review\" | \"reject\",\n  \"reason\": \"string explanation\"\n}\n\nRULES:\n- Amount match: Check if extracted amount is within ±5% of expected_amount = {{ $('Webhook').item.json.body.expected_amount }}\n- Recent date: Check if date is within the last 48 hours.\n- Sender check: Check if sender account ends with {{ $('Webhook').item.json.body.user_id }} (if applicable/visible).\n- If the image is not a valid bank receipt or transaction screenshot, set recommendation to \"reject\" and confidence_score to 0."
+      },
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        800,
+        64
+      ],
+      "id": "f112ae3f-f43d-4255-a034-82eeef59c082",
+      "name": "Analyze image",
+      "alwaysOutputData": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "u2GSVSePSBF1MDyw",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ JSON.parse($json.message.content).confidence_score }}",
+              "operation": "larger",
+              "value2": 90
+            }
+          ],
+          "string": [
+            {
+              "value1": "={{ JSON.parse($json.message.content).recommendation }}",
+              "value2": "approve"
+            }
+          ]
+        }
+      },
+      "name": "Auto-Approve?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        64
+      ],
+      "id": "7bc287b7-c782-4a84-a759-7fbe82f54327"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8000/api/webhooks/n8n/payment-result",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-N8N-SECRET",
+              "value": "1bd42b2ea94ba313ef7fccae55eb6290d2c5f12d3d0"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "payment_id",
+              "value": "={{ $('Webhook').item.json.body.payment_id }}"
+            },
+            {
+              "name": "confidence_score",
+              "value": "={{ JSON.parse($json.message.content).confidence_score }}"
+            },
+            {
+              "name": "recommendation",
+              "value": "={{ JSON.parse($json.message.content).recommendation }}"
+            },
+            {
+              "name": "extracted_data",
+              "value": "={{ JSON.parse($json.message.content).extracted_data }}"
+            },
+            {
+              "name": "analysis_json",
+              "value": "={{ $json.message.content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Callback to Laravel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        1400,
+        64
+      ],
+      "id": "80b246e8-38e0-424c-816c-090dff353339"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Analyze image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze image": {
+      "main": [
+        [
+          {
+            "node": "Auto-Approve?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-Approve?": {
+      "main": [
+        [
+          {
+            "node": "Callback to Laravel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Callback to Laravel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "dfdac4d0-c29b-476d-b48c-d667c29c3eb1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1d00a0671a7e88fce9eedd7a7cc69725fde7377ca33555214e9bac4313166604"
+  },
+  "id": "BjhmZaKDx1xKXNNo",
+  "tags": []
+}
