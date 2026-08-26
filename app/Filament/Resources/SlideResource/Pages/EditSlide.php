@@ -3,9 +3,9 @@
 namespace App\Filament\Resources\SlideResource\Pages;
 
 use App\Filament\Resources\SlideResource;
+use App\Services\CacheService;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
-use Illuminate\Support\Facades\Cache;
 
 class EditSlide extends EditRecord
 {
@@ -17,7 +17,7 @@ class EditSlide extends EditRecord
             Actions\DeleteAction::make()
                 ->after(function () {
                     // Clear all caches when slide is deleted
-                    Cache::flush();
+                    CacheService::clearSlideCaches();
                 }),
         ];
     }
@@ -27,6 +27,6 @@ class EditSlide extends EditRecord
      */
     protected function afterSave(): void
     {
-        Cache::flush();
+        CacheService::clearSlideCaches();
     }
 }

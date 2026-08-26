@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\PricingController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\Api\AdminStudentPerformanceController;
 use App\Http\Controllers\Api\ActivityLogController;
+use App\Http\Controllers\NotificationController;
 
 
 /*
@@ -62,6 +63,12 @@ Route::middleware('api')->group(function () {
     Route::post('/activity/quiz/started', [ActivityLogController::class, 'logQuizStarted']);
     Route::post('/activity/quiz/completed', [ActivityLogController::class, 'logQuizCompleted']);
     Route::get('/activity/my-activity', [ActivityLogController::class, 'getUserActivity']);
+
+    // Notifications
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::post('/notifications/{notification}/mark-as-read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
 
     Route::get('/chapters', [ChapterController::class, 'index']);
     Route::get('/chapters/{id}', [ChapterController::class, 'show']);

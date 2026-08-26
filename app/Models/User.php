@@ -59,6 +59,23 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(Payment::class);
     }
 
+    public function notifications()
+    {
+        return $this->hasManyThrough(
+            Notification::class,
+            UserNotification::class,
+            'user_id',
+            'id',
+            'id',
+            'notification_id'
+        );
+    }
+
+    public function userNotifications()
+    {
+        return $this->hasMany(UserNotification::class);
+    }
+
     public function isPremiumActive()
     {
         return $this->is_premium &&

@@ -13,7 +13,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('chapter_id')->constrained()->onDelete('cascade');
             $table->integer('slide_number');
-            $table->enum('type', ['title', 'content', 'quiz', 'scenario', 'review', 'answers'])->default('content');
+            $table->enum('type', ['title', 'content', 'quiz', 'scenario', 'review', 'answers', 'completion'])->default('content');
             $table->json('content');
             $table->timestamps();
             

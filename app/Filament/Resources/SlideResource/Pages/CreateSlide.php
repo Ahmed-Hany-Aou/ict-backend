@@ -3,9 +3,9 @@
 namespace App\Filament\Resources\SlideResource\Pages;
 
 use App\Filament\Resources\SlideResource;
+use App\Services\CacheService;
 use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
-use Illuminate\Support\Facades\Cache;
 
 class CreateSlide extends CreateRecord
 {
@@ -16,6 +16,6 @@ class CreateSlide extends CreateRecord
      */
     protected function afterCreate(): void
     {
-        Cache::flush();
+        CacheService::clearSlideCaches();
     }
 }
