@@ -13,7 +13,9 @@ return new class extends Migration
     public function up(): void
     {
         // For MySQL, we need to use raw SQL to modify ENUM
-        DB::statement("ALTER TABLE slides MODIFY COLUMN type ENUM('title', 'content', 'quiz', 'scenario', 'review', 'answers', 'completion') NOT NULL DEFAULT 'content'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE slides MODIFY COLUMN type ENUM('title', 'content', 'quiz', 'scenario', 'review', 'answers', 'completion') NOT NULL DEFAULT 'content'");
+        }
     }
 
     /**
@@ -22,6 +24,8 @@ return new class extends Migration
     public function down(): void
     {
         // Revert back to original enum values
-        DB::statement("ALTER TABLE slides MODIFY COLUMN type ENUM('title', 'content', 'quiz', 'scenario', 'review', 'answers') NOT NULL DEFAULT 'content'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE slides MODIFY COLUMN type ENUM('title', 'content', 'quiz', 'scenario', 'review', 'answers') NOT NULL DEFAULT 'content'");
+        }
     }
 };
