@@ -197,11 +197,13 @@ class QuizController extends Controller
             $request->validate([
                 'answers' => 'required|array',
                 'questions' => 'required|array', // The shuffled questions from frontend
+                'flagged' => 'nullable|array', // Flagged question indices
                 'time_taken' => 'nullable|integer'
             ]);
 
             $quiz = Quiz::findOrFail($quizId);
             $userAnswers = $request->answers;
+            $flaggedMap = $request->flagged ?? [];
 
             // IMPORTANT: Use the shuffled questions sent from frontend for accurate scoring
             // The frontend receives questions+options shuffled and sends them back with answers
@@ -226,6 +228,8 @@ class QuizController extends Controller
             $score = 0;
             $totalQuestions = count($questions);
             $detailedResults = [];
+            $flaggedCount = 0;
+            $flaggedWrongCount = 0;
 
             foreach ($questions as $index => $question) {
                 $userAnswer = $userAnswers[$index] ?? null;
@@ -237,14 +241,33 @@ class QuizController extends Controller
                     $score++;
                 }
 
+                // Check if flagged by index or boolean map
+                $isFlagged = false;
+                if (is_array($flaggedMap)) {
+                    if (isset($flaggedMap[$index])) {
+                        $isFlagged = (bool)$flaggedMap[$index];
+                    } elseif (in_array($index, $flaggedMap, true)) {
+                        $isFlagged = true;
+                    }
+                }
+
+                if ($isFlagged) {
+                    $flaggedCount++;
+                    if (!$isCorrect) {
+                        $flaggedWrongCount++;
+                    }
+                }
+
                 // Store detailed question data for review
                 $detailedResults[] = [
+                    'question_number' => $index + 1,
                     'question' => $question['question'],
                     'options' => $question['options'],
                     'user_answer' => $userAnswer,
                     'correct_answer' => $question['correct_answer'],
                     'explanation' => $question['explanation'] ?? null,
-                    'is_correct' => $isCorrect
+                    'is_correct' => $isCorrect,
+                    'is_flagged' => $isFlagged
                 ];
             }
 
@@ -277,7 +300,9 @@ class QuizController extends Controller
                     'percentage' => round($percentage, 2),
                     'passed' => $passed,
                     'passing_score' => $quiz->passing_score,
-                    'time_taken' => $request->time_taken
+                    'time_taken' => $request->time_taken,
+                    'flagged_count' => $flaggedCount,
+                    'flagged_wrong_count' => $flaggedWrongCount
                 ]
             ], $passed ? 'Congratulations! You passed!' : 'Keep studying and try again!');
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -297,6 +322,27 @@ class QuizController extends Controller
             ->where('user_id', auth()->id())
             ->orderBy('created_at', 'desc')
             ->get();
+
+        $results->transform(function ($result) {
+            $questionsData = $result->questions_data ?? [];
+            $flaggedCount = 0;
+            $flaggedWrongCount = 0;
+
+            if (is_array($questionsData)) {
+                foreach ($questionsData as $q) {
+                    if (!empty($q['is_flagged'])) {
+                        $flaggedCount++;
+                        if (empty($q['is_correct'])) {
+                            $flaggedWrongCount++;
+                        }
+                    }
+                }
+            }
+
+            $result->flagged_count = $flaggedCount;
+            $result->flagged_wrong_count = $flaggedWrongCount;
+            return $result;
+        });
 
         return $this->successResponse([
             'results' => $results
@@ -348,13 +394,14 @@ class QuizController extends Controller
                     'correct_answer' => $question['correct_answer'],
                     'correct_answer_text' => $question['options'][$question['correct_answer']],
                     'explanation' => $question['explanation'] ?? null,
-                    'is_correct' => $isCorrect
+                    'is_correct' => $isCorrect,
+                    'is_flagged' => false
                 ];
             }
 
             $result->questions_data = $detailedResults;
         } else if ($result->questions_data) {
-            // Ensure all questions have the text fields
+            // Ensure all questions have the text fields and is_flagged
             $enhanced = [];
             foreach ($result->questions_data as $index => $item) {
                 $enhancedItem = $item;
@@ -371,6 +418,9 @@ class QuizController extends Controller
                 }
                 if (!isset($enhancedItem['correct_answer_text'])) {
                     $enhancedItem['correct_answer_text'] = $enhancedItem['options'][$enhancedItem['correct_answer']];
+                }
+                if (!isset($enhancedItem['is_flagged'])) {
+                    $enhancedItem['is_flagged'] = false;
                 }
 
                 $enhanced[] = $enhancedItem;
@@ -397,6 +447,9 @@ class QuizController extends Controller
                 return $this->notFoundResponse('Quiz data not found');
             }
 
+            $flaggedCount = 0;
+            $flaggedWrongCount = 0;
+
             // Build detailed results if not stored
             if (!$result->questions_data || empty($result->questions_data)) {
                 $questions = $result->quiz->questions;
@@ -416,7 +469,8 @@ class QuizController extends Controller
                         'correct_answer' => $question['correct_answer'],
                         'correct_answer_text' => $question['options'][$question['correct_answer']],
                         'explanation' => $question['explanation'] ?? null,
-                        'is_correct' => $isCorrect
+                        'is_correct' => $isCorrect,
+                        'is_flagged' => false
                     ];
                 }
             } else {
@@ -439,6 +493,16 @@ class QuizController extends Controller
                         $detailedItem['correct_answer_text'] = $detailedItem['options'][$detailedItem['correct_answer']];
                     }
 
+                    $isFlagged = !empty($detailedItem['is_flagged']);
+                    $detailedItem['is_flagged'] = $isFlagged;
+
+                    if ($isFlagged) {
+                        $flaggedCount++;
+                        if (empty($detailedItem['is_correct'])) {
+                            $flaggedWrongCount++;
+                        }
+                    }
+
                     $detailedResults[] = $detailedItem;
                 }
             }
@@ -455,6 +519,8 @@ class QuizController extends Controller
                     'passed' => $result->passed,
                     'passing_score' => $result->quiz->passing_score,
                     'time_taken' => $result->time_taken,
+                    'flagged_count' => $flaggedCount,
+                    'flagged_wrong_count' => $flaggedWrongCount,
                     'created_at' => $result->created_at,
                     'questions' => $detailedResults
                 ]
