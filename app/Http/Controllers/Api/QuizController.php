@@ -241,13 +241,13 @@ class QuizController extends Controller
                     $score++;
                 }
 
-                // Check if flagged by index or boolean map
+                // Check if flagged by index list or boolean map
                 $isFlagged = false;
                 if (is_array($flaggedMap)) {
-                    if (isset($flaggedMap[$index])) {
-                        $isFlagged = (bool)$flaggedMap[$index];
-                    } elseif (in_array($index, $flaggedMap, true)) {
-                        $isFlagged = true;
+                    if (array_is_list($flaggedMap)) {
+                        $isFlagged = in_array($index, $flaggedMap, false) || in_array((string)$index, $flaggedMap, false);
+                    } else {
+                        $isFlagged = !empty($flaggedMap[$index]) || !empty($flaggedMap[(string)$index]);
                     }
                 }
 
