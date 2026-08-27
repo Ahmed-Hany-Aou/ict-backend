@@ -199,22 +199,17 @@ class ChapterController extends Controller
         $userId = Auth::id();
         $chapter = Chapter::findOrFail($id);
 
-        // Replace all the old logic with this one block
-        UserProgress::query()->updateOrInsert(
-            [
-                // Columns to MATCH against
-                'user_id' => $userId,
-                'chapter_id' => $chapter->id,
-            ],
-            [
-                // Columns to UPDATE or INSERT
-                'status' => 'completed',
-                'completed_at' => now(),
-                // Your original logic will work here because updateOrInsert
-                // does not use Eloquent model casting.
-                'started_at' => DB::raw('COALESCE(started_at, NOW())'),
-            ]
-        );
+        $userProgress = UserProgress::firstOrNew([
+            'user_id' => $userId,
+            'chapter_id' => $chapter->id,
+        ]);
+
+        if (!$userProgress->started_at) {
+            $userProgress->started_at = now();
+        }
+        $userProgress->status = 'completed';
+        $userProgress->completed_at = now();
+        $userProgress->save();
 
         // Clear cache after marking complete using CacheService
         CacheService::clearUserCache($userId);
