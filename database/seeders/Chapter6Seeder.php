@@ -10,9 +10,12 @@ class Chapter6Seeder extends Seeder
 {
     public function run(): void
     {
-        $jsonPath = base_path('../chapter_6_slides.json');
+        $jsonPath = database_path('seeders/chapter_6_slides.json');
         if (!file_exists($jsonPath)) {
             $jsonPath = base_path('chapter_6_slides.json');
+        }
+        if (!file_exists($jsonPath)) {
+            $jsonPath = base_path('../chapter_6_slides.json');
         }
 
         if (file_exists($jsonPath)) {

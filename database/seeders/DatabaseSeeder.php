@@ -36,6 +36,7 @@ class DatabaseSeeder extends Seeder
             Chapter1Seeder::class,
             Chapter2Seeder::class,
             Chapter3Seeder::class,
+            Chapter6Seeder::class,
         ]);
     }
 }

@@ -1,0 +1,205 @@
+{
+  "chapter": {
+    "chapter_number": 6,
+    "title": "Decision Making & Conditional Logic (Advanced Flowcharts & Boolean Operators)",
+    "description": "Master visual flowcharts, comparison and logical operators (and, or, not), multi-way branching, and real-world Egyptian case studies for Secondary 2 (S2).",
+    "is_published": true,
+    "is_premium": false,
+    "subject": "Computer Science & Programming",
+    "grade": "Secondary 2 (S2)",
+    "target_platform": "ElKheta Demo & Wadha Platform"
+  },
+  "slides": [
+    {
+      "slide_number": 1,
+      "type": "title",
+      "content": {
+        "title": "Decision Making & Conditional Logic",
+        "subtitle": "Mastering Flowcharts, Boolean Expressions, and Branching in Python",
+        "footer": "Computer Science & Programming • Secondary 2 (S2) – Egypt Curriculum",
+        "description": "Transforming sequential code into intelligent, responsive decision-making algorithms."
+      }
+    },
+    {
+      "slide_number": 2,
+      "type": "content",
+      "content": {
+        "title": "Why Do We Need Decision Making in Software?",
+        "definition": "Standard programs run line-by-line in a rigid sequence. Decision-making statements evaluate live data and dynamically direct execution down different paths.",
+        "keyPoint": "Golden Rule: Decision = (Input Data) ➔ [Condition Evaluation: True/False] ➔ (Action Execution)",
+        "cards": [
+          {
+            "title": "🚇 Cairo Metro Smart Gate",
+            "desc": "Check ticket or card balance before opening gate",
+            "example": "if balance >= 10: open_turnstile()"
+          },
+          {
+            "title": "📱 Fawry / Vodafone Cash",
+            "desc": "Validate wallet balance before approving bill payment",
+            "example": "if wallet >= bill: process_payment()"
+          },
+          {
+            "title": "🚗 Smart Toll Highway Gate",
+            "desc": "Check RFID electronic tag to lift automatic barrier",
+            "example": "if rfid_valid: lift_barrier()"
+          }
+        ]
+      }
+    },
+    {
+      "slide_number": 3,
+      "type": "content",
+      "content": {
+        "title": "Boolean Expressions & Comparison Operators",
+        "definition": "A condition is a Boolean Expression that evaluates strictly to either True or False.",
+        "table": [
+          { "type": "== (Equal to)", "desc": "Evaluates True if operands on both sides are identical", "example": "x == 10 (True if x is 10)" },
+          { "type": "!= (Not Equal)", "desc": "Evaluates True if operands on both sides are different", "example": "role != 'admin' (True if guest)" },
+          { "type": "> and >= (Greater)", "desc": "Greater than / Greater than or equal to", "example": "score >= 50 (Passing grade in Egypt)" },
+          { "type": "< and <= (Less)", "desc": "Less than / Less than or equal to", "example": "balance <= 0 (Overdrawn wallet)" }
+        ],
+        "note": "⚠️ CRITICAL TRAP: '=' is for Assignment (x = 5), while '==' is for Equality Comparison (x == 5)!"
+      }
+    },
+    {
+      "slide_number": 4,
+      "type": "content",
+      "content": {
+        "title": "One-Way Branch: The \"if\" Statement with Flowchart",
+        "definition": "The code block inside an 'if' executes ONLY when its condition evaluates to True. If False, the block is completely bypassed.",
+        "points": [
+          "Mandatory Colon (:): Must follow the condition expression.",
+          "Indentation (4 spaces): Defines the scope of the code block.",
+          "Sequential Flow: Code after the block executes unconditionally."
+        ],
+        "codeSnippet": {
+          "language": "Python",
+          "filename": "fever_detector.py",
+          "code": "# Smart Clinic Patient Screening\ntemperature = 38.8\n\nif temperature > 37.5:\n    print('⚠️ Alert: High fever detected!')\n    print('Please proceed to Triage Room 2.')\n\nprint('Screening check complete.')",
+          "output": "⚠️ Alert: High fever detected!\nPlease proceed to Triage Room 2.\nScreening check complete."
+        }
+      }
+    },
+    {
+      "slide_number": 5,
+      "type": "content",
+      "content": {
+        "title": "Two-Way Branching: The \"if...else\" Statement",
+        "definition": "Guarantees that exactly ONE of two alternative blocks will execute: the 'if' block when True, or the 'else' block when False.",
+        "points": [
+          "No condition on 'else': The 'else' keyword acts as the catch-all fallback.",
+          "Mutual Exclusivity: Both blocks can never execute together in the same run."
+        ],
+        "codeSnippet": {
+          "language": "Python",
+          "filename": "driving_license_check.py",
+          "code": "# Egyptian Driving License Eligibility Check\nage = 17\n\nif age >= 18:\n    print('✅ Approved: Eligible to apply for driving license.')\nelse:\n    years_left = 18 - age\n    print('❌ Rejected: Underage applicant.')\n    print(f'Please reapply in {years_left} year(s).')",
+          "output": "❌ Rejected: Underage applicant.\nPlease reapply in 1 year(s)."
+        }
+      }
+    },
+    {
+      "slide_number": 6,
+      "type": "content",
+      "content": {
+        "title": "Multi-Way Decisions: The \"if...elif...else\" Ladder",
+        "definition": "Used when evaluating multiple mutual conditions sequentially from top to bottom.",
+        "points": [
+          "First-Match Priority: As soon as a condition evaluates to True, its block runs and the rest are skipped.",
+          "Order Matters: Conditions must be ordered from strictest/highest to lowest."
+        ],
+        "codeSnippet": {
+          "language": "Python",
+          "filename": "thanaweya_grading.py",
+          "code": "# High School Student Evaluation System\nscore = 88.5\n\nif score >= 85:\n    grade = 'Excellent (امتياز) 🌟'\nelif score >= 75:\n    grade = 'Very Good (جيد جداً) 👍'\nelif score >= 65:\n    grade = 'Good (جيد)'\nelif score >= 50:\n    grade = 'Pass (مقبول)'\nelse:\n    grade = 'Fail (راسب) - Needs Summer Retake'\n\nprint(f'Evaluation: {grade}')",
+          "output": "Evaluation: Excellent (امتياز) 🌟"
+        }
+      }
+    },
+    {
+      "slide_number": 7,
+      "type": "content",
+      "content": {
+        "title": "Logical Operators: Combining Compound Conditions",
+        "definition": "Logical operators (and, or, not) allow you to build sophisticated compound conditions.",
+        "table": [
+          { "type": "and (Conjunction)", "desc": "Returns True ONLY if BOTH conditions are True", "example": "score >= 85 and attendance >= 90" },
+          { "type": "or (Disjunction)", "desc": "Returns True if AT LEAST ONE condition is True", "example": "is_scholarship or has_voucher" },
+          { "type": "not (Negation)", "desc": "Inverts the Boolean value (True -> False, False -> True)", "example": "not is_suspended" }
+        ],
+        "codeSnippet": {
+          "language": "Python",
+          "filename": "university_scholarship.py",
+          "code": "# Cairo STEM University Scholarship Eligibility\ngpa = 3.8\nextracurricular_score = 92\nis_disciplinary_clean = True\n\nif (gpa >= 3.7 and extracurricular_score >= 85) and not (is_disciplinary_clean == False):\n    print('🎉 Congratulations! 100% Full Scholarship Awarded.')\nelse:\n    print('Application placed on regular admission track.')",
+          "output": "🎉 Congratulations! 100% Full Scholarship Awarded."
+        }
+      }
+    },
+    {
+      "slide_number": 8,
+      "type": "content",
+      "content": {
+        "title": "Common Traps, Debugging & Pro Tips",
+        "definition": "The top 3 syntax and logical pitfalls every programmer must master:",
+        "cards": [
+          {
+            "title": "⚠️ Trap 1: Assignment inside 'if'",
+            "desc": "Using single '=' instead of double '=='",
+            "example": "Wrong: if x = 10:  |  Right: if x == 10:"
+          },
+          {
+            "title": "⚠️ Trap 2: Inverted elif Ordering",
+            "desc": "Placing loose condition before strict condition",
+            "example": "Wrong: if score >= 50 before >= 85"
+          },
+          {
+            "title": "⚠️ Trap 3: Operator Precedence",
+            "desc": "'not' evaluates before 'and', which evaluates before 'or'",
+            "example": "Always use parentheses: (A and B) or C"
+          }
+        ],
+        "note": "💡 Pro-Tip: Clean code uses descriptive variable names and explicit parentheses for crystal-clear logic."
+      }
+    },
+    {
+      "slide_number": 9,
+      "type": "quiz",
+      "content": {
+        "title": "Interactive Knowledge Check (Live Classroom Quiz)",
+        "questions": [
+          {
+            "q": "What will be printed when x = 10, y = 5, and we run:\nif x > 8 and y > 6:\n    print('A')\nelif x > 8 or y > 6:\n    print('B')\nelse:\n    print('C')",
+            "options": ["A", "B", "C", "SyntaxError"],
+            "answer": "B"
+          }
+        ]
+      }
+    },
+    {
+      "slide_number": 10,
+      "type": "scenario",
+      "content": {
+        "title": "Applied Case Study: Fawry E-Commerce Smart Checkout",
+        "scenario": "A customer in Cairo orders goods worth 650 EGP. The platform offers Free Delivery if order >= 500 EGP AND promo code == 'EGYPT2026', otherwise standard delivery is 50 EGP.",
+        "breakdown": [
+          { "type": "1. Input Data", "content": "cart_total = 650, promo_code = 'EGYPT2026', user_city = 'Cairo'" },
+          { "type": "2. Compound Condition", "content": "if cart_total >= 500 and promo_code == 'EGYPT2026': delivery_fee = 0" },
+          { "type": "3. Decision & Result", "content": "Condition is True -> Free Shipping applied. Final Bill = 650 EGP (Saved 50 EGP)." }
+        ]
+      }
+    },
+    {
+      "slide_number": 11,
+      "type": "completion",
+      "content": {
+        "title": "🎉 Mastery Unlocked: Conditional Logic & Control Flow",
+        "message": "You now possess the foundational mastery to build smart, branching algorithms and diagnostic programs in Python!",
+        "nextSteps": [
+          "Nested Decision Trees (Decision inside another Decision)",
+          "Pattern Matching with match-case in Python 3.10+",
+          "Repetition & Loops: Controlling execution with While and For loops"
+        ]
+      }
+    }
+  ]
+}
